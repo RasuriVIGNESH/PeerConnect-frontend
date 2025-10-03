@@ -1,0 +1,72 @@
+id,name,category,description
+1,JavaScript,Programming,Dynamic programming language for web development
+2,Python,Programming,Versatile programming language for data science and web development
+3,Java,Programming,Object-oriented programming language for enterprise applications
+4,React,Programming,JavaScript library for building user interfaces
+5,Node.js,Programming,JavaScript runtime for server-side development
+6,HTML,Programming,Markup language for creating web pages
+7,CSS,Programming,Styling language for web design
+8,TypeScript,Programming,Typed superset of JavaScript
+9,C++,Programming,High-performance programming language
+10,C#,Programming,Microsoft's object-oriented programming language
+11,PHP,Programming,Server-side scripting language
+12,Ruby,Programming,Dynamic programming language
+13,Go,Programming,Google's programming language for system programming
+14,Rust,Programming,Systems programming language focused on safety
+15,Swift,Programming,Apple's programming language for iOS development
+16,Kotlin,Programming,Modern programming language for Android development
+17,SQL,Programming,Language for managing relational databases
+18,MongoDB,Programming,NoSQL document database
+19,PostgreSQL,Programming,Advanced open-source relational database
+20,MySQL,Programming,Popular open-source relational database
+21,Firebase,Programming,Google's mobile and web application development platform
+22,AWS,Programming,Amazon Web Services cloud platform
+23,Docker,Programming,Containerization platform
+24,Kubernetes,Programming,Container orchestration platform
+25,Git,Programming,Version control system
+26,Linux,Programming,Open-source operating system
+27,UI/UX Design,Design,User interface and user experience design
+28,Graphic Design,Design,Visual communication design
+29,Web Design,Design,Design for websites and web applications
+30,Mobile Design,Design,Design for mobile applications
+31,Figma,Design,Collaborative design tool
+32,Adobe Photoshop,Design,Image editing software
+33,Adobe Illustrator,Design,Vector graphics editor
+34,Sketch,Design,Digital design toolkit
+35,Prototyping,Design,Creating interactive mockups
+36,Wireframing,Design,Creating basic layout structures
+37,Data Analysis,Data Science,Analyzing and interpreting data
+38,Machine Learning,Data Science,Algorithms that learn from data
+39,Data Visualization,Data Science,Creating visual representations of data
+40,Statistics,Data Science,Mathematical analysis of data
+41,R,Data Science,Programming language for statistical computing
+42,Pandas,Data Science,Python library for data manipulation
+43,NumPy,Data Science,Python library for numerical computing
+44,TensorFlow,Data Science,Machine learning framework
+45,PyTorch,Data Science,Deep learning framework
+46,Tableau,Data Science,Data visualization software
+47,Power BI,Data Science,Business analytics tool
+48,Excel,Data Science,Spreadsheet application for data analysis
+49,iOS Development,Mobile,Developing applications for iOS
+50,Android Development,Mobile,Developing applications for Android
+51,React Native,Mobile,Cross-platform mobile development framework
+52,Flutter,Mobile,Google's UI toolkit for mobile development
+53,Xamarin,Mobile,Microsoft's cross-platform development framework
+54,Project Management,Other,Planning and executing projects
+55,Agile,Other,Iterative project management methodology
+56,Scrum,Other,Agile framework for product development
+57,Leadership,Other,Guiding and motivating teams
+58,Communication,Other,Effective verbal and written communication
+59,Problem Solving,Other,Analytical thinking and solution finding
+60,Critical Thinking,Other,Objective analysis and evaluation
+61,Teamwork,Other,Collaborative working skills
+62,Time Management,Other,Efficiently organizing and planning time
+63,Public Speaking,Other,Presenting to audiences
+64,Writing,Other,Creating written content
+65,Research,Other,Systematic investigation and study
+66,Marketing,Other,Promoting products or services
+67,Sales,Other,Selling products or services
+68,Customer Service,Other,Supporting and helping customers
+69,Finance,Other,Managing money and financial planning
+70,Accounting,Other,Recording and analyzing financial transactions
+
