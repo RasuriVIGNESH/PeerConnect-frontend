@@ -6,15 +6,16 @@ import LandingPage from './components/LandingPage';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import ForgotPassword from './components/auth/ForgotPassword';
-import LinkedInCallback from './components/auth/LinkedInCallback';
 import Dashboard from './components/Dashboard';
 import ProfilePage from './components/profile/ProfilePage';
 import CreateProject from './components/projects/CreateProject';
-import ProjectDetail from './components/projects/ProjectDetail';
-import InviteMembers from './components/projects/InviteMembers';
+import ProjectPage from './components/project/ProjectPage';
+import InviteMembers from './components/project/InviteMembers';
 import StudentDiscovery from './components/discovery/StudentDiscovery';
 import ProjectDiscovery from './components/discovery/ProjectDiscovery';
+import SkillDiscovery from './components/discovery/SkillDiscovery';
 import MyProjects from './components/projects/MyProjects';
+import OAuth2RedirectHandler from './components/auth/OAuth2RedirectHandler';
 import { RequestProvider } from './contexts/RequestContext';
 import Connections from './components/profile/Connections';
 import RequestsPage from './components/requests/RequestsPage';
@@ -33,7 +34,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/auth/linkedin/callback" element={<LinkedInCallback />} />
+            <Route path="/auth/oauth2/redirect" element={<OAuth2RedirectHandler />} />
             
             {/* Protected Routes */}
             <Route 
@@ -60,11 +61,19 @@ function App() {
                 </ProtectedRoute>
               } 
             />
-            <Route 
+            {/* <Route 
               path="/projects/:projectId" 
               element={
                 <ProtectedRoute>
                   <ProjectDetail />
+                </ProtectedRoute>
+              } 
+            /> */}
+            <Route 
+              path="/projects/:projectId" 
+              element={
+                <ProtectedRoute>
+                  <ProjectPage />
                 </ProtectedRoute>
               } 
             />
@@ -89,6 +98,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <ProjectDiscovery />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/discover/skills" 
+              element={
+                <ProtectedRoute>
+                  <SkillDiscovery />
                 </ProtectedRoute>
               } 
             />

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useRequests } from '../contexts/RequestContext'; // <-- 1. IMPORT useRequests HOOK
+import { dashboardService } from '../services/dashboardService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,23 +13,38 @@ import {
   LogOut, 
   Plus,
   Menu,
-  Bell,
   User,
   Mail,
   Sparkles,
-  BookOpen
+  BookOpen,
+  Search
 } from 'lucide-react';
 // Note: Unused imports were removed for cleanliness
 
 export default function Dashboard() {
   const { currentUser, userProfile, logout } = useAuth();
   const { pendingCount } = useRequests(); // <-- 2. GET PENDING COUNT FROM CONTEXT
-  const [projectConunt, setProjectCount]=useState(0);
-  const [skillCount, setSkillCount]=useState(0);
+  const [projectCount, setProjectCount] = useState(0);
+  const [skillCount, setSkillCount] = useState(0);
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const response = await dashboardService.getDashboardCounts();
+        if (response.success) {
+          setProjectCount(response.data.projectsCount || 0);
+          setSkillCount(response.data.skillsCount || 0);
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
   
   const handleLogout = async () => {
     try {
@@ -40,15 +56,6 @@ export default function Dashboard() {
     }
   };
 
-  // Mock notifications data - replace with actual API call
-  const notifications = [
-    { id: 1, text: "🎉 New project invitation received from Sarah", time: "2 min ago", unread: true },
-    { id: 2, text: "⭐ Your project 'AI Chatbot' was featured", time: "1 hour ago", unread: true },
-    { id: 3, text: "🤝 Connection request from Alex accepted", time: "3 hours ago", unread: false },
-    { id: 4, text: "📚 New skill badge earned: React Expert", time: "1 day ago", unread: false },
-  ];
-
-  const unreadCount = notifications.filter(n => n.unread).length;
 
   // Quick Actions - Only the 5 requested features
   const quickActions = [
@@ -67,6 +74,14 @@ export default function Dashboard() {
       onClick: () => navigate('/discover/projects'),
       gradient: "bg-gradient-to-br from-cyan-500 to-blue-500",
       hoverGradient: "hover:from-cyan-600 hover:to-blue-600"
+    },
+    {
+      title: "Discover Skills",
+      description: "Explore new technologies",
+      icon: <Search className="h-6 w-6" />,
+      onClick: () => navigate('/discover/skills'),
+      gradient: "bg-gradient-to-br from-amber-500 to-orange-500",
+      hoverGradient: "hover:from-amber-600 hover:to-orange-600"
     }
   ];
 
@@ -74,7 +89,7 @@ export default function Dashboard() {
   const stats = [
     {
       title: "My Projects",
-      value: projectConunt, // Backend integration
+      value: projectCount, // Backend integration
       icon: <FolderOpen className="h-5 w-5" />,
       description: "Active collaborations",
       onClick: () => navigate('/projects/my-projects'),
@@ -82,8 +97,6 @@ export default function Dashboard() {
       lightBg: "bg-violet-50",
       iconBg: "bg-violet-100",
       iconColor: "text-violet-600",
-      trend: "+3 this month",
-      trendColor: "text-violet-600"
     },
     {
       title: "Connections",
@@ -95,8 +108,6 @@ export default function Dashboard() {
       lightBg: "bg-blue-50",
       iconBg: "bg-blue-100",
       iconColor: "text-blue-600",
-      trend: "+12 new",
-      trendColor: "text-blue-600"
     },
     {
       title: "Skills",
@@ -108,26 +119,9 @@ export default function Dashboard() {
       lightBg: "bg-emerald-50",
       iconBg: "bg-emerald-100",
       iconColor: "text-emerald-600",
-      trend: "+2 earned",
-      trendColor: "text-emerald-600"
     }
   ];
 
-  // Backend integration for notifications
-  useEffect(() => {
-    // Fetch notifications from backend
-    const fetchNotifications = async () => {
-      try {
-       
-      } catch (error) {
-        console.error('Error fetching notifications:', error);
-      }
-    };
-
-    if (currentUser) {
-      fetchNotifications();
-    }
-  }, [currentUser]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
@@ -232,53 +226,12 @@ export default function Dashboard() {
             </p>
           </div>
           
-          {/* Notification Bell */}
-          <div className="relative">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 rounded-xl"
-            >
-              <Bell className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center shadow-lg">
-                  {unreadCount}
-                </span>
-              )}
-            </Button>
-            
-            {/* Notifications Dropdown */}
-            {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 bg-white/90 backdrop-blur-lg rounded-xl shadow-lg border border-white/20 py-2 z-50">
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <h3 className="font-semibold text-gray-900 flex items-center">
-                    <Bell className="h-4 w-4 mr-2" />
-                    Notifications
-                  </h3>
-                </div>
-                <div className="max-h-64 overflow-y-auto">
-                  {notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      className={`px-4 py-3 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 border-l-2 transition-all duration-200 ${
-                        notification.unread ? 'border-blue-500 bg-gradient-to-r from-blue-50/50 to-purple-50/50' : 'border-transparent'
-                      }`}
-                    >
-                      <p className="text-sm text-gray-900">{notification.text}</p>
-                      <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Quick Actions - Only Start New Project and Browse Projects */}
         <div className="mb-8">
           <h3 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {quickActions.map((action, index) => (
               <Card 
                 key={index}
@@ -336,9 +289,6 @@ export default function Dashboard() {
               <CardContent>
                 <div className="text-3xl font-bold text-gray-900 mb-1">{stat.value}</div>
                 <p className="text-xs text-gray-500 mb-2">{stat.description}</p>
-                <div className={`text-xs font-medium px-2 py-1 rounded-full inline-block ${stat.lightBg} ${stat.trendColor}`}>
-                  {stat.trend}
-                </div>
               </CardContent>
             </Card>
           ))}
@@ -380,12 +330,11 @@ export default function Dashboard() {
       )}
       
       {/* Click outside to close dropdowns */}
-      {(showMenu || showNotifications) && (
+      {showMenu && (
         <div 
           className="fixed inset-0 z-40" 
           onClick={() => {
             setShowMenu(false);
-            setShowNotifications(false);
           }}
         />
       )}

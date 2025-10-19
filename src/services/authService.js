@@ -54,16 +54,19 @@ class AuthService {
         }
     }
 
-    // LinkedIn OAuth login
-    async loginWithLinkedIn() {
-        try {
-            // Redirect to backend LinkedIn OAuth endpoint
-            const linkedInAuthUrl = `${apiService.baseURL}/auth/linkedin`;
-            window.location.href = linkedInAuthUrl;
-        } catch (error) {
-            throw new Error('LinkedIn authentication failed');
-        }
+// LinkedIn OAuth login
+async loginWithLinkedIn() {
+    try {
+      // Redirect directly to Spring Boot's OAuth2 authorization endpoint
+      const linkedInAuthUrl = `http://localhost:8080/oauth2/authorize/linkedin`;
+      window.location.href = linkedInAuthUrl;
+    } catch (error) {
+      throw new Error('LinkedIn authentication failed');
     }
+  }
+  
+  
+  
 
     // Logout user
     async logout() {

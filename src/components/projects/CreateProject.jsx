@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { X, ArrowLeft, ArrowRight, Check, Briefcase, Target, Wrench } from 'lucide-react';
 import { projectService } from '../../services/projectService.js';
+import { dataService } from '../../services/dataService.js';
 
 // Step Indicator for Progress Bar
 const StepIndicator = ({ step, active, completed, title, icon }) => (
@@ -38,6 +39,8 @@ export default function CreateProject() {
   const [message, setMessage] = useState('');
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState([]);
+  const [projectCategories, setProjectCategories] = useState([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
 
   // Updated formData state to match the CreateProjectRequest DTO
   const [formData, setFormData] = useState({
@@ -55,6 +58,21 @@ export default function CreateProject() {
     expectedStartDate: '',
     expectedEndDate: '',
   });
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      setIsLoadingCategories(true);
+      try {
+        const response = await dataService.getProjectCategories();
+        setProjectCategories(response.data || []);
+      } catch (err) {
+        setError('Failed to load project categories. Please try again later.');
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   const [techStackInput, setTechStackInput] = useState('');
 
@@ -184,16 +202,16 @@ export default function CreateProject() {
               </div> 
               <div>
                 <Label htmlFor="category" className="font-medium text-gray-700">Category *</Label>
-                <Select value={formData.category} onValueChange={v => handleInputChange('category', v)}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Select a category" /></SelectTrigger>
+                <Select value={formData.category} onValueChange={v => handleInputChange('category', v)} disabled={isLoadingCategories}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder={isLoadingCategories ? "Loading categories..." : "Select a category"} />
+                  </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="WEB_DEVELOPMENT">Web Development</SelectItem>
-                    <SelectItem value="MOBILE_DEVELOPMENT">Mobile Development</SelectItem>
-                    <SelectItem value="DATA_SCIENCE">Data Science</SelectItem>
-                    <SelectItem value="MACHINE_LEARNING">Machine Learning</SelectItem>
-                    <SelectItem value="GAME_DEVELOPMENT">Game Development</SelectItem>
-                    <SelectItem value="DESIGN">UI/UX Design</SelectItem>
-                    <SelectItem value="OTHER">Other</SelectItem>
+                    {projectCategories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

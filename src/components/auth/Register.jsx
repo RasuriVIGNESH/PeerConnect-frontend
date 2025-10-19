@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Eye, EyeOff, Mail, Lock, User, GraduationCap, BookOpen, Linkedin } from 'lucide-react';
+import { dataService } from '../../services/dataService.js';
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -25,25 +26,29 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const { signup, loginWithLinkedIn, isCollegeEmail } = useAuth();
   const navigate = useNavigate();
+  const [staticData, setStaticData] = useState({ branches: [], graduationYears: [] });
+  const [isLoadingStaticData, setIsLoadingStaticData] = useState(false);
 
-  const currentYear = new Date().getFullYear();
-  const graduationYears = Array.from({ length: 8 }, (_, i) => currentYear + i);
-  
-  const branches = [
-    'Computer Science',
-    'Information Technology',
-    'Electronics and Communication',
-    'Electrical Engineering',
-    'Mechanical Engineering',
-    'Civil Engineering',
-    'Chemical Engineering',
-    'Biotechnology',
-    'Business Administration',
-    "Data Science",
-    "Artificial Intelligence",
-    "Cybersecurity",
-    'Other'
-  ];
+  useEffect(() => {
+    const fetchStaticData = async () => {
+      setIsLoadingStaticData(true);
+      try {
+        const [branchesRes, yearsRes] = await Promise.all([
+          dataService.getBranches(),
+          dataService.getGraduationYears()
+        ]);
+        setStaticData({
+          branches: branchesRes.data || [],
+          graduationYears: yearsRes.data || []
+        });
+      } catch (err) {
+        setError('Failed to load registration data. Please refresh the page.');
+      } finally {
+        setIsLoadingStaticData(false);
+      }
+    };
+    fetchStaticData();
+  }, []);
 
   function handleInputChange(e) {
     const { name, value } = e.target;
@@ -199,13 +204,13 @@ export default function Register() {
                   <Label htmlFor="graduationYear">Graduation Year</Label>
                   <div className="relative">
                     <GraduationCap className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
-                    <Select onValueChange={(value) => handleSelectChange('graduationYear', value)}>
+                    <Select onValueChange={(value) => handleSelectChange('graduationYear', value)} disabled={isLoadingStaticData}>
                       <SelectTrigger className="pl-10">
-                        <SelectValue placeholder="Select year" />
+                        <SelectValue placeholder={isLoadingStaticData ? "Loading..." : "Select year"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {graduationYears.map(year => (
-                          <SelectItem key={year} value={year.toString()}>
+                        {staticData.graduationYears.map(year => (
+                          <SelectItem key={year} value={String(year)}>
                             {year}
                           </SelectItem>
                         ))}
@@ -218,14 +223,14 @@ export default function Register() {
                   <Label htmlFor="branch">Branch/Major</Label>
                   <div className="relative">
                     <BookOpen className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
-                    <Select onValueChange={(value) => handleSelectChange('branch', value)}>
+                    <Select onValueChange={(value) => handleSelectChange('branch', value)} disabled={isLoadingStaticData}>
                       <SelectTrigger className="pl-10">
-                        <SelectValue placeholder="Select branch" />
+                        <SelectValue placeholder={isLoadingStaticData ? "Loading..." : "Select branch"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {branches.map(branch => (
+                        {staticData.branches.map(branch => (
                           <SelectItem key={branch} value={branch}>
-                            {branch}
+                            {branch.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -330,4 +335,3 @@ export default function Register() {
     </div>
   );
 }
-
