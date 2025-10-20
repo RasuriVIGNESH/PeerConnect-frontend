@@ -596,12 +596,12 @@ class TeamService {
 
       const role = userRole.data.role;
       const permissions = {
-        'invite': ['OWNER', 'ADMIN'],
-        'remove_member': ['OWNER'],
-        'update_role': ['OWNER'],
-        'cancel_invitation': ['OWNER', 'ADMIN'],
-        'view_invitations': ['OWNER', 'ADMIN', 'MEMBER'],
-        'view_members': ['OWNER', 'ADMIN', 'MEMBER']
+        'invite': ['Lead', 'ADMIN'],
+        'remove_member': ['Lead'],
+        'update_role': ['Lead'],
+        'cancel_invitation': ['Lead', 'ADMIN'],
+        'view_invitations': ['Lead', 'ADMIN', 'MEMBER'],
+        'view_members': ['Lead', 'ADMIN', 'MEMBER']
       };
 
       const allowedRoles = permissions[operation] || [];

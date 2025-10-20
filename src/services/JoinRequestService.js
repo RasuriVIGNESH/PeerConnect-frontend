@@ -20,7 +20,7 @@ class JoinRequestService {
   }
 
   /**
-   * Get all join requests for a specific project (owner only).
+   * Get all join requests for a specific project (Lead only).
    * Corresponds to: GET /api/projects/{projectId}/join-requests
    */
   async getProjectJoinRequests(projectId) {
@@ -28,7 +28,7 @@ class JoinRequestService {
   }
 
   /**
-   * Accept a join request (owner only).
+   * Accept a join request (Lead only).
    * Corresponds to: PUT /api/join-requests/{requestId}/accept
    */
   async acceptJoinRequest(requestId) {
@@ -36,7 +36,7 @@ class JoinRequestService {
   }
 
   /**
-   * Reject a join request (owner only).
+   * Reject a join request (Lead only).
    * Corresponds to: PUT /api/join-requests/{requestId}/reject
    */
   async rejectJoinRequest(requestId) {

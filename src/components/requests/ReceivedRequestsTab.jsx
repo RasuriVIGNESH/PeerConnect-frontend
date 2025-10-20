@@ -12,6 +12,14 @@ export default function ReceivedRequestsTab() {
   // V-- 2. GET receivedJoinRequests FROM THE CONTEXT --V
   const { receivedInvitations, receivedJoinRequests, loading, error, refresh } = useRequests();
 
+  // Debug logging
+  console.log("ReceivedRequestsTab: Data from context:", {
+    receivedInvitations,
+    receivedJoinRequests,
+    loading,
+    error
+  });
+
   const handleInvitationResponse = async (invitationId, response) => {
     try {
       await teamService.respondToInvitation(invitationId, response);

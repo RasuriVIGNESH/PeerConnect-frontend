@@ -21,28 +21,44 @@ export const RequestProvider = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
+      console.log("RequestContext: Fetching all data for user:", currentUserId);
+      
       const [joinRequestsRes, invitationsRes, myProjectsResponse] = await Promise.all([
         joinRequestService.getMyJoinRequests(),
         teamService.getUserInvitations(),
         projectService.getMyProjects()
       ]);
 
-      // V-- THIS IS THE FIX --V
-      // Correctly access the nested data.content array for invitations
-      setReceivedInvitations(invitationsRes.data?.content || []);
-      // ^-- END OF FIX --^
+      console.log("RequestContext: API Responses:", {
+        joinRequests: joinRequestsRes,
+        invitations: invitationsRes,
+        myProjects: myProjectsResponse
+      });
+
+      // Fix: Backend returns invitations directly as array, not nested in data.content
+      const invitations = invitationsRes.data || invitationsRes || [];
+      console.log("RequestContext: Processed invitations:", invitations);
+      setReceivedInvitations(invitations);
       
-      setSentJoinRequests(joinRequestsRes.data || joinRequestsRes || []);
+      // Fix: Backend returns join requests directly as array
+      const sentRequests = joinRequestsRes.data || joinRequestsRes || [];
+      console.log("RequestContext: Processed sent join requests:", sentRequests);
+      setSentJoinRequests(sentRequests);
 
       const myProjects = myProjectsResponse.content || [];
-      const ownedProjects = myProjects.filter(p => p.owner?.id === currentUserId);
+      const ownedProjects = myProjects.filter(p => p.Lead?.id === currentUserId);
+      console.log("RequestContext: Owned projects:", ownedProjects);
       
       if (ownedProjects.length > 0) {
         const requestsPromises = ownedProjects.map(project => 
           joinRequestService.getProjectJoinRequests(project.id)
         );
         const results = await Promise.all(requestsPromises);
-        setReceivedJoinRequests(results.flat());
+        console.log("RequestContext: Received join requests results:", results);
+        // Fix: Backend returns join requests directly as array
+        const allJoinRequests = results.map(res => res.data || res || []).flat();
+        console.log("RequestContext: Processed received join requests:", allJoinRequests);
+        setReceivedJoinRequests(allJoinRequests);
       } else {
         setReceivedJoinRequests([]);
       }

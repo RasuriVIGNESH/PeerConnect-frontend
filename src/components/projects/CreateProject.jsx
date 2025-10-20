@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { X, ArrowLeft, ArrowRight, Check, Briefcase, Target, Wrench } from 'lucide-react';
+import { X, ArrowLeft, ArrowRight, Check, Briefcase, Target, Wrench, PlusCircle } from 'lucide-react';
 import { projectService } from '../../services/projectService.js';
 import { dataService } from '../../services/dataService.js';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 // Step Indicator for Progress Bar
 const StepIndicator = ({ step, active, completed, title, icon }) => (
@@ -32,7 +33,6 @@ const StepIndicator = ({ step, active, completed, title, icon }) => (
 );
 
 export default function CreateProject() {
-  const { userProfile } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -41,6 +41,8 @@ export default function CreateProject() {
   const [completedSteps, setCompletedSteps] = useState([]);
   const [projectCategories, setProjectCategories] = useState([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+  const [showCategoryDialog, setShowCategoryDialog] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   // Updated formData state to match the CreateProjectRequest DTO
   const [formData, setFormData] = useState({
@@ -71,6 +73,22 @@ export default function CreateProject() {
         setIsLoadingCategories(false);
       }
     };
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    setIsLoadingCategories(true);
+    try {
+      const categories = await projectService.getProjectCategories();
+      setProjectCategories(categories || []);
+    } catch (err) {
+      setError('Failed to load project categories.');
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  };
+
+  useEffect(() => {
     fetchCategories();
   }, []);
 
@@ -137,6 +155,30 @@ export default function CreateProject() {
     setError('');
   };
 
+  const handleCategoryChange = (value) => {
+    if (value === 'create_new') {
+      setShowCategoryDialog(true);
+    } else {
+      handleInputChange('category', value);
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) {
+      alert('Please enter a category name.');
+      return;
+    }
+    try {
+      const newCategory = await projectService.createProjectCategory({ name: newCategoryName });
+      await fetchCategories(); // Refresh the list
+      handleInputChange('category', newCategory.name); // Auto-select the new category
+      setNewCategoryName('');
+      setShowCategoryDialog(false);
+    } catch (err) {
+      alert('Failed to create category. It might already exist.');
+    }
+  };
+
   const handleSubmit = async e => {
     e.preventDefault();
     if (!validateStep(3)) {
@@ -147,8 +189,22 @@ export default function CreateProject() {
     setError('');
     setMessage('');
     try {
-      // The formData object now matches the DTO
-      await projectService.createProject(formData);
+      // Create a payload and map the fields for the backend
+      const payload = {
+        ...formData,
+        // 1. Convert maxTeamSize from a string to a number
+        maxTeamSize: parseInt(formData.maxTeamSize, 10),
+        
+        // 2. Map the frontend 'category' field to the backend 'categoryName'
+        categoryName: formData.category,
+      };
+      
+      // 3. Remove the now-redundant 'category' key
+      delete payload.category; 
+
+      // Send the corrected payload to the service
+      await projectService.createProject(payload);
+      
       setMessage('Project created successfully! Redirecting to dashboard...');
       setTimeout(() => navigate('/dashboard'), 2000);
     } catch (err) {
@@ -201,20 +257,25 @@ export default function CreateProject() {
                 </p>
               </div> 
               <div>
-                <Label htmlFor="category" className="font-medium text-gray-700">Category *</Label>
-                <Select value={formData.category} onValueChange={v => handleInputChange('category', v)} disabled={isLoadingCategories}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder={isLoadingCategories ? "Loading categories..." : "Select a category"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projectCategories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Label htmlFor="category" className="font-medium text-gray-700">Category *</Label>
+              <Select value={formData.category} onValueChange={handleCategoryChange} disabled={isLoadingCategories}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder={isLoadingCategories ? "Loading..." : "Select a category"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {projectCategories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.name}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="create_new" className="text-blue-600">
+                    <span className="flex items-center gap-2">
+                      <PlusCircle className="h-4 w-4" /> Create New Category
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             </CardContent>
           </Card>
         );
@@ -363,6 +424,27 @@ export default function CreateProject() {
             )}
             </div>
         </form>
+        {/* --- DIALOG FOR CREATING A NEW CATEGORY --- */}
+        <Dialog open={showCategoryDialog} onOpenChange={setShowCategoryDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Category</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <Label htmlFor="newCategoryName">Category Name</Label>
+              <Input
+                id="newCategoryName"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="e.g., Artificial Intelligence"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowCategoryDialog(false)}>Cancel</Button>
+              <Button onClick={handleCreateCategory}>Create</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

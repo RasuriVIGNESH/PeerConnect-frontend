@@ -120,16 +120,44 @@ class ProjectService {
   // ===== TASK MANAGEMENT =====
 
   // Get tasks for a project - matches ProjectController endpoint
+  // Get tasks for a project - matches ProjectController endpoint
   async getProjectTasks(projectId) {
     try {
       if (!projectId) {
         throw new Error('Project ID is required');
       }
-      
-      return await apiService.get(`/projects/${projectId}/tasks`);
+      // Return the response body directly (backend returns an array)
+      const response = await apiService.get(`/projects/${projectId}/tasks`);
+      return response;
     } catch (error) {
       console.error(`Failed to get tasks for project ${projectId}:`, error);
       throw new Error(error.message || 'Failed to get project tasks');
+    }
+  }
+  // ===== PROJECT CATEGORY OPERATIONS =====
+
+  // Get all project categories
+  async getProjectCategories() {
+    try {
+      const response = await apiService.get('/project-categories');
+      return response.data; // Assuming the backend returns an array of categories
+    } catch (error) {
+      console.error('Failed to get project categories:', error);
+      throw new Error(error.message || 'Failed to get project categories');
+    }
+  }
+
+  // Create a new project category
+  async createProjectCategory(categoryData) {
+    try {
+      if (!categoryData.name) {
+        throw new Error('Category name is required');
+      }
+      const response = await apiService.post('/project-categories', categoryData);
+      return response.data; // Return the newly created category object
+    } catch (error) {
+      console.error('Failed to create project category:', error);
+      throw new Error(error.message || 'Failed to create project category');
     }
   }
 

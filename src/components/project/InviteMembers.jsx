@@ -40,13 +40,13 @@ export default function InviteMembers() {
         const currentMembers = membersResponse?.data || [];
         const memberIds = new Set(currentMembers.map(member => member.user.id));
         
-        // Also add the owner to the set of users not to show
+        // Also add the Lead to the set of users not to show
         const projectDetails = await projectService.getProject(projectId);
-        if (projectDetails?.owner?.id) {
-            memberIds.add(projectDetails.owner.id);
+        if (projectDetails?.Lead?.id) {
+            memberIds.add(projectDetails.Lead.id);
         }
 
-        // Filter out the current user, the project owner, and any existing members
+        // Filter out the current user, the project Lead, and any existing members
         const availableStudents = allStudents.filter(student => !memberIds.has(student.id));
 
         const processedStudents = availableStudents.map(student => ({
