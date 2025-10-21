@@ -1,6 +1,6 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LandingPage from './components/LandingPage';
 import Login from './components/auth/Login';
@@ -20,7 +20,70 @@ import { RequestProvider } from './contexts/RequestContext';
 import Connections from './components/profile/Connections';
 import RequestsPage from './components/requests/RequestsPage';
 import Skills from './components/profile/Skills';
+import MeetingRooms from './components/project/MeetingRooms';
+import { projectService } from './services/projectService';
+import { Loader2 } from 'lucide-react';
 import './App.css';
+
+// Wrapper component to fetch data for MeetingRooms
+function MeetingRoomsPage() {
+    const { projectId } = useParams();
+    const { userProfile } = useAuth();
+    const [project, setProject] = useState(null);
+    const [members, setMembers] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                setLoading(true);
+                // Fetch project details to get the name
+                const projectData = await projectService.getProject(projectId);
+                setProject(projectData);
+
+                // Fetch project members
+                const membersRes = await projectService.getProjectMembers(projectId);
+                const projectMembers = membersRes.data?.content || membersRes.data || [];
+                
+                // Add project lead to members list if not already present
+                const lead = projectData?.lead;
+                let allTeamMembers = [...projectMembers];
+                if (lead && !projectMembers.some(member => member.user.id === lead.id)) {
+                  allTeamMembers.unshift({
+                    id: `lead-${lead.id}`,
+                    user: lead,
+                    role: 'Lead'
+                  });
+                }
+                setMembers(allTeamMembers);
+
+            } catch (error) {
+                console.error("Failed to load project data for meeting rooms", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, [projectId]);
+
+    if (loading) {
+        return <div className="flex h-screen items-center justify-center"><Loader2 className="h-16 w-16 animate-spin text-blue-600"/></div>;
+    }
+
+    if (!project) {
+        return <div className="flex h-screen items-center justify-center">Project not found.</div>;
+    }
+
+    return (
+        <MeetingRooms
+            projectId={projectId}
+            projectName={project.title}
+            currentUser={userProfile}
+            projectMembers={members.map(m => m.user)} // Pass user objects to component
+        />
+    );
+}
+
 
 function App() {
   return (
@@ -61,14 +124,6 @@ function App() {
                 </ProtectedRoute>
               } 
             />
-            {/* <Route 
-              path="/projects/:projectId" 
-              element={
-                <ProtectedRoute>
-                  <ProjectDetail />
-                </ProtectedRoute>
-              } 
-            /> */}
             <Route 
               path="/projects/:projectId" 
               element={
@@ -85,6 +140,14 @@ function App() {
                 </ProtectedRoute>
               } 
               />
+            <Route 
+              path="/projects/:projectId/rooms" 
+              element={
+                <ProtectedRoute>
+                  <MeetingRoomsPage />
+                </ProtectedRoute>
+              } 
+            />
             <Route 
               path="/discover/students" 
               element={

@@ -338,7 +338,7 @@ const MyProjects = () => {
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-gray-500" />
                       <span className="text-gray-700">
-                        <span className="font-semibold text-gray-900">{project.currentTeamSize}</span>
+                        <span className="font-semibold text-gray-900">{project.currentTeamSize+1}</span>
                         /{project.maxTeamSize} members
                       </span>
                     </div>
