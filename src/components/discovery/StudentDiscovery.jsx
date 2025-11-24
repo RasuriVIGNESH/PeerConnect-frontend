@@ -23,7 +23,8 @@ import {
   UserPlus,
   MessageCircle,
   X,
-  Loader2
+  Loader2,
+  Building
 } from 'lucide-react';
 
 // Import your existing services (using correct paths based on your SkillsManager.jsx)
@@ -157,7 +158,8 @@ export default function StudentDiscovery() {
           // Ensure proper field mapping
           displayName: student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim(),
           profileImage: student.profileImage || student.profilePicture || student.avatar || null,
-          studentSkills: studentSkills
+          studentSkills: studentSkills,
+          collegeName: student.collage?.name
         };
       });
 
@@ -513,6 +515,12 @@ export default function StudentDiscovery() {
                         <GraduationCap className="h-3 w-3" />
                         {student.branch || 'No Branch'}
                       </CardDescription>
+                      {student.collegeName && (
+                        <CardDescription className="flex items-center gap-1">
+                          <Building className="h-3 w-3" />
+                          {student.collegeName}
+                        </CardDescription>
+                      )}
                     </div>
                   </div>
                   {/* Compatibility Score */}

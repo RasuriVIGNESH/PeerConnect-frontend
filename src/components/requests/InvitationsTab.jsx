@@ -1,19 +1,19 @@
-// src/components/requests/SentRequestsTab.jsx
+// src/components/requests/InvitationsTab.jsx
 
 import React from 'react';
 import { useRequests } from '../../contexts/RequestContext';
 import RequestCard from './RequestCard';
-import { joinRequestService } from '../../services/JoinRequestService';
+import { teamService } from '../../services/TeamService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Inbox } from 'lucide-react';
 
-export default function SentRequestsTab() {
-  const { sentJoinRequests, loading, error, refresh } = useRequests();
+export default function InvitationsTab() {
+  const { receivedInvitations, loading, error, refresh } = useRequests();
 
-  const handleCancel = async (requestId) => {
+  const handleInvitationResponse = async (invitationId, response) => {
     try {
-      await joinRequestService.cancelJoinRequest(requestId);
+      await teamService.respondToInvitation(invitationId, response);
       refresh();
     } catch (err) {
       alert(`Error: ${err.message}`);
@@ -36,58 +36,55 @@ export default function SentRequestsTab() {
     );
   }
 
-  const pendingSentRequests = sentJoinRequests.filter(req => req.status === 'PENDING');
-  const respondedSentRequests = sentJoinRequests.filter(req => req.status !== 'PENDING');
-  
+  const pendingInvitations = receivedInvitations.filter(i => i.status === 'PENDING');
+  const respondedInvitations = receivedInvitations.filter(i => i.status !== 'PENDING');
+
   return (
     <div className="space-y-8">
       <div>
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-2xl font-bold flex items-center gap-2">
-              Sent Requests
-              <Badge variant="secondary" className="text-sm">{pendingSentRequests.length}</Badge>
+              Pending Invitations
+              <Badge variant="secondary" className="text-sm">{pendingInvitations.length}</Badge>
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Your requests to join other projects
+              Invitations from project owners for you to join their teams
             </p>
           </div>
         </div>
-        {pendingSentRequests.length > 0 ? (
+        {pendingInvitations.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {pendingSentRequests.map(req => (
+            {pendingInvitations.map(inv => (
               <RequestCard
-                key={req.id}
-                item={req}
-                type="join-request"
-                onCancel={handleCancel}
+                key={inv.id}
+                item={inv}
+                type="invitation"
+                onAccept={(id) => handleInvitationResponse(id, 'ACCEPTED')}
+                onReject={(id) => handleInvitationResponse(id, 'REJECTED')}
               />
             ))}
           </div>
         ) : (
           <div className="text-center py-12 bg-muted/30 rounded-lg border-2 border-dashed">
-            <Send className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground">No pending sent requests</p>
+            <Inbox className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+            <p className="text-muted-foreground">No pending invitations</p>
             <p className="text-sm text-muted-foreground mt-1">
-              When you request to join a project, it will appear here
+              You'll see invitations from project owners here
             </p>
           </div>
         )}
       </div>
 
-      {respondedSentRequests.length > 0 && (
+      {respondedInvitations.length > 0 && (
         <div>
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            Request History
-            <Badge variant="outline" className="text-xs">{respondedSentRequests.length}</Badge>
+            History
+            <Badge variant="outline" className="text-xs">{respondedInvitations.length}</Badge>
           </h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 opacity-70">
-            {respondedSentRequests.map(req => (
-              <RequestCard
-                key={req.id}
-                item={req}
-                type="join-request"
-              />
+            {respondedInvitations.map(inv => (
+              <RequestCard key={inv.id} item={inv} type="invitation" />
             ))}
           </div>
         </div>

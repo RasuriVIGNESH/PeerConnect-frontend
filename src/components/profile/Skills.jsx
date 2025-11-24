@@ -8,10 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { 
-  TrendingUp, 
-  Plus, 
-  Search, 
+import {
+  TrendingUp,
+  Plus,
+  Search,
   ArrowLeft,
   Star,
   BookOpen,
@@ -27,24 +27,24 @@ import skillsService from '../../services/skillsService';
 export default function Skills() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  
+
   // State for user skills and predefined skills
   const [userSkills, setUserSkills] = useState([]);
   const [predefinedSkills, setPredefinedSkills] = useState([]);
   const [skillCategories, setSkillCategories] = useState([]);
-  
+
   // Loading and UI states
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddSkill, setShowAddSkill] = useState(false);
   const [addingSkill, setAddingSkill] = useState(false);
-  
+
   // Add skill form states
   const [newSkillName, setNewSkillName] = useState('');
   const [newSkillCategory, setNewSkillCategory] = useState('');
   const [newSkillLevel, setNewSkillLevel] = useState('BEGINNER');
   const [newSkillExperience, setNewSkillExperience] = useState('');
-  
+
   // Messages
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -145,7 +145,7 @@ export default function Skills() {
 
     try {
       setAddingSkill(true);
-      
+
       const skillData = {
         skillName: newSkillName.trim(),
         level: newSkillLevel,
@@ -153,20 +153,20 @@ export default function Skills() {
       };
 
       await skillsService.addUserSkill(skillData);
-      
+
       // Reload user skills
       await loadUserSkills();
-      
+
       // Reset form
       setNewSkillName('');
       setNewSkillCategory('');
       setNewSkillLevel('BEGINNER');
       setNewSkillExperience('');
       setShowAddSkill(false);
-      
+
       setMessage('Skill added successfully!');
       clearMessages();
-      
+
     } catch (error) {
       console.error('Error adding skill:', error);
       setError(error.message || 'Failed to add skill');
@@ -186,7 +186,7 @@ export default function Skills() {
 
       await skillsService.updateUserSkill(userSkillId, skillData);
       await loadUserSkills();
-      
+
       setMessage('Skill level updated!');
       clearMessages();
     } catch (error) {
@@ -201,7 +201,7 @@ export default function Skills() {
     try {
       await skillsService.deleteUserSkill(userSkillId);
       await loadUserSkills();
-      
+
       setMessage('Skill removed successfully!');
       clearMessages();
     } catch (error) {
@@ -222,7 +222,7 @@ export default function Skills() {
 
       await skillsService.addUserSkill(skillData);
       await loadUserSkills();
-      
+
       setMessage('Skill added successfully!');
       clearMessages();
     } catch (error) {
@@ -250,9 +250,9 @@ export default function Skills() {
     const skillName = userSkill.skill?.name || userSkill.skillName || '';
     const skillCategory = userSkill.skill?.category || '';
     const searchLower = searchTerm.toLowerCase();
-    
+
     return skillName.toLowerCase().includes(searchLower) ||
-           skillCategory.toLowerCase().includes(searchLower);
+      skillCategory.toLowerCase().includes(searchLower);
   });
 
   // Group skills by category
@@ -267,7 +267,7 @@ export default function Skills() {
 
   // Get available predefined skills (not already added by user)
   const availablePredefinedSkills = predefinedSkills.filter(predefinedSkill => {
-    return !userSkills.some(userSkill => 
+    return !userSkills.some(userSkill =>
       (userSkill.skill?.name || userSkill.skillName)?.toLowerCase() === predefinedSkill.name.toLowerCase()
     );
   });
@@ -306,10 +306,6 @@ export default function Skills() {
                 </p>
               </div>
             </div>
-            <Button onClick={() => setShowAddSkill(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Skill
-            </Button>
           </div>
         </div>
       </header>
@@ -369,7 +365,7 @@ export default function Skills() {
                         onKeyPress={(e) => e.key === 'Enter' && handleAddSkill()}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="skillLevel">Proficiency Level</Label>
                       <Select value={newSkillLevel} onValueChange={setNewSkillLevel}>
@@ -389,7 +385,7 @@ export default function Skills() {
                       </Select>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="skillExperience">Experience/Notes (Optional)</Label>
                     <Input
@@ -402,14 +398,14 @@ export default function Skills() {
                   </div>
 
                   <div className="flex gap-3">
-                    <Button 
+                    <Button
                       onClick={handleAddSkill}
                       disabled={addingSkill}
                     >
                       {addingSkill ? 'Adding...' : 'Add Skill'}
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => {
                         setShowAddSkill(false);
                         setNewSkillName('');
@@ -434,7 +430,7 @@ export default function Skills() {
                     {searchTerm ? 'No matching skills found' : 'No skills added yet'}
                   </h3>
                   <p className="text-gray-600 mb-6">
-                    {searchTerm 
+                    {searchTerm
                       ? 'Try adjusting your search terms'
                       : 'Start building your skill profile to attract better project opportunities'
                     }
@@ -462,7 +458,7 @@ export default function Skills() {
                       {categorySkills.map((userSkill) => {
                         const proficiencyInfo = getProficiencyInfo(userSkill.level);
                         const skillName = userSkill.skill?.name || userSkill.skillName;
-                        
+
                         return (
                           <Card key={userSkill.id} className="hover:shadow-lg transition-shadow">
                             <CardHeader className="pb-3">
@@ -470,8 +466,8 @@ export default function Skills() {
                                 <div className="flex-1">
                                   <CardTitle className="text-lg mb-2">{skillName}</CardTitle>
                                   <div className="flex items-center space-x-2">
-                                    <Badge 
-                                      variant="secondary" 
+                                    <Badge
+                                      variant="secondary"
                                       className={`${proficiencyInfo.color} text-white text-xs`}
                                     >
                                       {proficiencyInfo.label}
@@ -483,9 +479,9 @@ export default function Skills() {
                                     )}
                                   </div>
                                 </div>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
                                   className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                                   onClick={() => handleRemoveSkill(userSkill.id)}
                                 >
@@ -506,7 +502,7 @@ export default function Skills() {
                                     </span>
                                   </div>
                                   <div className="w-full bg-gray-200 rounded-full h-2">
-                                    <div 
+                                    <div
                                       className={`h-2 rounded-full transition-all duration-300 ${proficiencyInfo.color}`}
                                       style={{ width: `${proficiencyInfo.percentage}%` }}
                                     ></div>
@@ -518,7 +514,7 @@ export default function Skills() {
                                   <Label className="text-xs">Update Level</Label>
                                   <Select
                                     value={userSkill.level}
-                                    onValueChange={(newLevel) => 
+                                    onValueChange={(newLevel) =>
                                       handleUpdateSkillLevel(userSkill.id, newLevel)
                                     }
                                   >
@@ -557,7 +553,7 @@ export default function Skills() {
                 <CardTitle className="text-lg">Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button 
+                <Button
                   className="w-full justify-start"
                   onClick={() => setShowAddSkill(true)}
                 >
@@ -608,52 +604,6 @@ export default function Skills() {
                       {Object.keys(skillsByCategory).length}
                     </span>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Top Skills */}
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle className="text-lg">Top Skills</CardTitle>
-                <CardDescription>Based on proficiency level</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {userSkills
-                    .sort((a, b) => {
-                      const aLevel = getProficiencyInfo(a.level).percentage;
-                      const bLevel = getProficiencyInfo(b.level).percentage;
-                      return bLevel - aLevel;
-                    })
-                    .slice(0, 5)
-                    .map((userSkill, index) => {
-                      const proficiencyInfo = getProficiencyInfo(userSkill.level);
-                      const skillName = userSkill.skill?.name || userSkill.skillName;
-                      
-                      return (
-                        <div key={userSkill.id} className="flex items-center space-x-3">
-                          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-medium">
-                            {index + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {skillName}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {proficiencyInfo.label} level
-                            </p>
-                          </div>
-                          <Star className="h-4 w-4 text-yellow-400" />
-                        </div>
-                      );
-                    })
-                  }
-                  {userSkills.length === 0 && (
-                    <p className="text-sm text-gray-500 text-center py-4">
-                      No skills added yet
-                    </p>
-                  )}
                 </div>
               </CardContent>
             </Card>

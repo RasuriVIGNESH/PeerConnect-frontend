@@ -1,6 +1,6 @@
 // src/components/project/ProjectPage.jsx
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -108,26 +108,29 @@ function TaskManagement({ projectId, isProjectLead, project }) {
 
   const handleSaveTask = async () => {
     try {
+      const creating = !editingTask;
       let payload;
-      // The lead can change everything.
-      if (isProjectLead) {
+
+      if (creating) {
+        // Everyone can create tasks and assign them to any team member
         payload = {
           ...taskForm,
           assignedToId: taskForm.assignedToId || null,
           estimatedHours: taskForm.estimatedHours ? parseInt(taskForm.estimatedHours, 10) : null,
         };
-      } else {
-        // A member can only update the status of their own task.
-        payload = {
-          status: taskForm.status,
-        };
-      }
-
-      if (editingTask) {
-        await projectService.updateTask(projectId, editingTask.id, payload);
-      } else {
-        // This part is for creating a new task, which only the lead can do.
         await projectService.createTask(projectId, payload);
+      } else {
+        // Editing: leads can edit all fields; members can update status
+        if (isProjectLead) {
+          payload = {
+            ...taskForm,
+            assignedToId: taskForm.assignedToId || null,
+            estimatedHours: taskForm.estimatedHours ? parseInt(taskForm.estimatedHours, 10) : null,
+          };
+        } else {
+          payload = { status: taskForm.status };
+        }
+        await projectService.updateTask(projectId, editingTask.id, payload);
       }
       setShowTaskDialog(false);
       loadData();
@@ -154,9 +157,7 @@ function TaskManagement({ projectId, isProjectLead, project }) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Project Tasks</CardTitle>
-          {isProjectLead && (
-            <Button onClick={() => handleOpenDialog()}><Plus className="h-4 w-4 mr-2" />Create Task</Button>
-          )}
+          <Button onClick={() => handleOpenDialog()}><Plus className="h-4 w-4 mr-2" />Create Task</Button>
         </CardHeader>
         <CardContent>
           {error && <Alert variant="destructive" className="mb-4"><AlertDescription>{error}</AlertDescription></Alert>}
@@ -176,7 +177,7 @@ function TaskManagement({ projectId, isProjectLead, project }) {
                     <Badge variant="secondary">{task.status.replace('_', ' ')}</Badge>
                     {/* Show edit button if user is lead OR task is assigned to them */}
                     {canEdit && (
-                        <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(task)}><Edit3 className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(task)}><Edit3 className="h-4 w-4" /></Button>
                     )}
                     {/* Only lead can delete tasks */}
                     {isProjectLead && (
@@ -194,28 +195,50 @@ function TaskManagement({ projectId, isProjectLead, project }) {
         <DialogHeader>
           <DialogTitle>{editingTask ? 'Edit Task' : 'Create New Task'}</DialogTitle>
           <DialogDescription>
-            {isProjectLead ? 'Update any details for this task.' : 'You can only update the status for your assigned task.'}
+            {editingTask
+              ? (isProjectLead
+                ? 'Update any details for this task.'
+                : 'You can update the status. Other fields are restricted to the lead.')
+              : 'Create a task and assign it to any team member.'}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          <Input placeholder="Title" value={taskForm.title} onChange={e => setTaskForm({ ...taskForm, title: e.target.value })} disabled={!isProjectLead} />
-          <Textarea placeholder="Description" value={taskForm.description} onChange={e => setTaskForm({ ...taskForm, description: e.target.value })} disabled={!isProjectLead} />
+          {/** When creating a task, all users can edit full fields; when editing, only leads can edit full fields */}
+          <Input placeholder="Title" value={taskForm.title} onChange={e => setTaskForm({ ...taskForm, title: e.target.value })} disabled={!!editingTask && !isProjectLead} />
+          <Textarea placeholder="Description" value={taskForm.description} onChange={e => setTaskForm({ ...taskForm, description: e.target.value })} disabled={!!editingTask && !isProjectLead} />
           <div className="grid grid-cols-2 gap-4">
-            <div><Label>Assign To</Label><Select onValueChange={value => setTaskForm({ ...taskForm, assignedToId: value })} value={taskForm.assignedToId} disabled={!isProjectLead}><SelectTrigger><SelectValue placeholder="Select member" /></SelectTrigger><SelectContent>{assignableMembers.map(m => <SelectItem key={m.user.id} value={m.user.id}>{m.user.firstName} {m.user.lastName}</SelectItem>)}</SelectContent></Select></div>
-            <div><Label>Priority</Label><Select onValueChange={value => setTaskForm({ ...taskForm, priority: value })} value={taskForm.priority} disabled={!isProjectLead}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="LOW">Low</SelectItem><SelectItem value="MEDIUM">Medium</SelectItem><SelectItem value="HIGH">High</SelectItem></SelectContent></Select></div>
+            <div><Label>Assign To</Label><Select onValueChange={value => setTaskForm({ ...taskForm, assignedToId: value })} value={taskForm.assignedToId} disabled={!!editingTask && !isProjectLead}><SelectTrigger><SelectValue placeholder="Select member" /></SelectTrigger><SelectContent>{assignableMembers.map(m => <SelectItem key={m.user.id} value={m.user.id}>{m.user.firstName} {m.user.lastName}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Priority</Label><Select onValueChange={value => setTaskForm({ ...taskForm, priority: value })} value={taskForm.priority} disabled={!!editingTask && !isProjectLead}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="LOW">Low</SelectItem><SelectItem value="MEDIUM">Medium</SelectItem><SelectItem value="HIGH">High</SelectItem></SelectContent></Select></div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             {/* The status field is always enabled for editing */}
             <div><Label>Status</Label><Select onValueChange={value => setTaskForm({ ...taskForm, status: value })} value={taskForm.status}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="TODO">To Do</SelectItem><SelectItem value="IN_PROGRESS">In Progress</SelectItem><SelectItem value="COMPLETED">Completed</SelectItem></SelectContent></Select></div>
-            <div><Label>Estimated Hours</Label><Input type="number" placeholder="e.g., 8" value={taskForm.estimatedHours} onChange={e => setTaskForm({ ...taskForm, estimatedHours: e.target.value })} disabled={!isProjectLead} /></div>
+            <div><Label>Estimated Hours</Label><Input type="number" placeholder="e.g., 8" value={taskForm.estimatedHours} onChange={e => setTaskForm({ ...taskForm, estimatedHours: e.target.value })} disabled={!!editingTask && !isProjectLead} /></div>
           </div>
-          <div><Label>Due Date</Label><Input type="date" value={taskForm.dueDate} onChange={e => setTaskForm({ ...taskForm, dueDate: e.target.value })} disabled={!isProjectLead} /></div>
+          <div><Label>Due Date</Label><Input type="date" value={taskForm.dueDate} onChange={e => setTaskForm({ ...taskForm, dueDate: e.target.value })} disabled={!!editingTask && !isProjectLead} /></div>
         </div>
         <DialogFooter><Button onClick={handleSaveTask}>Save Changes</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+// Helper to get profile image source
+const getProfileImage = (user) => {
+  if (!user) return null;
+  if (user.profilePictureUrl) return user.profilePictureUrl;
+  if (user.profileImage) return user.profileImage;
+  if (user.profilePhoto) {
+    // If it's a URL (http/https), return it as is
+    if (user.profilePhoto.startsWith('http')) return user.profilePhoto;
+
+    // If it's a base64 string
+    return user.profilePhoto.startsWith('data:image')
+      ? user.profilePhoto
+      : `data:image/png;base64,${user.profilePhoto}`;
+  }
+  return null;
+};
+
 // ===================================================================================
 //                                TEAM MANAGEMENT
 // ===================================================================================
@@ -223,14 +246,14 @@ function MemberManagement({ projectId, isProjectLead, project }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  
+
   useEffect(() => {
     const loadMembersAndLead = async () => {
       try {
         setLoading(true);
         const res = await projectService.getProjectMembers(projectId);
         const projectMembers = res.data?.content || res.data || [];
-        
+
         const lead = project?.lead;
         let allTeamMembers = [...projectMembers];
 
@@ -247,65 +270,65 @@ function MemberManagement({ projectId, isProjectLead, project }) {
         } else if (lead && leadIsAlreadyMember) {
           // Ensure the lead's role is correctly labeled if they are in the list
           const leadInList = allTeamMembers.find(member => member.user.id === lead.id);
-          if(leadInList) leadInList.role = 'Lead';
+          if (leadInList) leadInList.role = 'Lead';
         }
-        
+
         setMembers(allTeamMembers);
-      } catch (error) { 
-        console.error("Failed to load members", error); 
-      } finally { 
-        setLoading(false); 
+      } catch (error) {
+        console.error("Failed to load members", error);
+      } finally {
+        setLoading(false);
       }
     };
-    
+
     if (project) {
-        loadMembersAndLead();
+      loadMembersAndLead();
     }
   }, [projectId, project]);
 
   const handleRemoveMember = async (memberId) => {
-      if(window.confirm("Are you sure you want to remove this member?")) {
-          try { 
-              await projectService.removeMember(projectId, memberId); 
-              // Manually filter out the removed member to refresh the UI instantly
-              setMembers(prevMembers => prevMembers.filter(m => m.id !== memberId));
-          }
-          catch(error) { alert("Failed to remove member."); }
+    if (window.confirm("Are you sure you want to remove this member?")) {
+      try {
+        await projectService.removeMember(projectId, memberId);
+        // Manually filter out the removed member to refresh the UI instantly
+        setMembers(prevMembers => prevMembers.filter(m => m.id !== memberId));
       }
+      catch (error) { alert("Failed to remove member."); }
+    }
   };
-  
+
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
 
   return (
-      <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Team Members ({members.length})</CardTitle>
-              {isProjectLead && <Button onClick={() => navigate(`/projects/${projectId}/invite`)}><UserPlus className="mr-2 h-4 w-4"/>Invite</Button>}
-          </CardHeader>
-          <CardContent>
-              <div className="space-y-2">
-                  {members.map(member => (
-                      <div key={member.id} className="flex items-center justify-between p-2 border rounded">
-                         <div className="flex items-center gap-3">
-                             <Avatar>
-                                 <AvatarImage src={member.user.profilePictureUrl}/>
-                                 <AvatarFallback>{member.user.firstName?.[0]}{member.user.lastName?.[0]}</AvatarFallback>
-                             </Avatar>
-                             <div>
-                                 <p className="font-semibold">{member.user.firstName} {member.user.lastName}</p>
-                                 <p className="text-sm text-gray-500">{member.role}</p>
-                             </div>
-                         </div>
-                         {isProjectLead && member.role !== 'Lead' && (
-                             <Button variant="ghost" size="icon" className="text-red-600" onClick={() => handleRemoveMember(member.id)}>
-                                 <UserX className="h-4 w-4" />
-                             </Button>
-                         )}
-                      </div>
-                  ))}
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Team Members ({members.length})</CardTitle>
+        <Button onClick={() => navigate(`/projects/${projectId}/invite`)}><UserPlus className="mr-2 h-4 w-4" />Add Members</Button>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {members.map(member => (
+            <div key={member.id} className="flex items-center justify-between p-2 border rounded">
+              <div className="flex items-center gap-3">
+                <Avatar>
+                  <AvatarImage src={getProfileImage(member.user)} />
+                  <AvatarFallback>{member.user.firstName?.[0]}{member.user.lastName?.[0]}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-semibold">{member.user.firstName} {member.user.lastName}</p>
+                  <p className="text-sm text-gray-500">{member.role}</p>
+                </div>
               </div>
-          </CardContent>
-      </Card>
+              {isProjectLead && member.role !== 'Lead' && (
+                <Button variant="ghost" size="icon" className="text-red-600" onClick={() => handleRemoveMember(member.id)}>
+                  <UserX className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -335,7 +358,7 @@ function ProjectChat({ projectId }) {
     };
     fetchHistory();
   }, [projectId]);
-  
+
   // Polling for new messages
   useEffect(() => {
     const poll = setInterval(async () => {
@@ -352,7 +375,7 @@ function ProjectChat({ projectId }) {
   }, [projectId]);
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
-  
+
   const handleSendMessage = async () => {
     if (messageInput.trim()) {
       try {
@@ -381,6 +404,7 @@ function ProjectChat({ projectId }) {
             <div key={msg.id} className={`flex items-end gap-2 ${msg.sender.id === userProfile.id ? 'justify-end' : 'justify-start'}`}>
               {msg.sender.id !== userProfile.id && (
                 <Avatar className="h-8 w-8">
+                  <AvatarImage src={getProfileImage(msg.sender)} />
                   <AvatarFallback>{msg.sender.firstName?.[0]}</AvatarFallback>
                 </Avatar>
               )}
@@ -394,11 +418,11 @@ function ProjectChat({ projectId }) {
         <div ref={chatEndRef} />
       </CardContent>
       <div className="p-4 border-t flex items-center gap-2">
-        <Input 
-          placeholder="Type a message..." 
-          value={messageInput} 
-          onChange={(e) => setMessageInput(e.target.value)} 
-          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} 
+        <Input
+          placeholder="Type a message..."
+          value={messageInput}
+          onChange={(e) => setMessageInput(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
         />
         <Button onClick={handleSendMessage}>
           <Send className="h-4 w-4" />
@@ -427,15 +451,32 @@ function ProjectManage({ project, onRefresh }) {
 function ProjectRequests({ requests, onRefresh }) {
   const [processingId, setProcessingId] = useState(null);
 
+  // --- 1. Split requests into pending and past ---
+  const { pendingRequests, pastRequests } = useMemo(() => {
+    const pending = [];
+    const past = [];
+
+    // Ensure requests is an array before filtering
+    (requests || []).forEach(req => {
+      if (req.status === 'PENDING') {
+        pending.push(req);
+      } else {
+        past.push(req);
+      }
+    });
+
+    return { pendingRequests: pending, pastRequests: past };
+  }, [requests]);
+
   const handleResponse = async (requestId, action) => {
-    setProcessingId(requestId); // Disable buttons for the specific request being processed
+    setProcessingId(requestId);
     try {
       if (action === 'accept') {
         await joinRequestService.acceptJoinRequest(requestId);
       } else {
         await joinRequestService.rejectJoinRequest(requestId);
       }
-      onRefresh(); // Refresh the entire project data to reflect changes
+      onRefresh();
     } catch (error) {
       alert(`Failed to ${action} request.`);
     } finally {
@@ -443,101 +484,137 @@ function ProjectRequests({ requests, onRefresh }) {
     }
   };
 
-  // The component no longer needs its own loading state or useEffect to fetch data
   return (
     <Card>
       <CardHeader>
         <CardTitle>Join Requests</CardTitle>
         <CardDescription>Review and respond to requests from students to join your project.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {requests.length > 0 ? requests.map(req => (
-          <div key={req.id} className="p-3 border rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <p className="font-semibold">{req.user.firstName} {req.user.lastName}</p>
-              <p className="text-sm text-gray-500">{req.user.branch} • Class of {req.user.graduationYear}</p>
-              {req.message && <p className="mt-1 text-sm text-gray-700 bg-gray-50 p-2 rounded">"{req.message}"</p>}
-            </div>
-            <div className="flex gap-2 flex-shrink-0">
-              <Button size="sm" variant="outline" onClick={() => handleResponse(req.id, 'reject')} disabled={processingId === req.id}>
-                {processingId === req.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reject'}
-              </Button>
-              <Button size="sm" onClick={() => handleResponse(req.id, 'accept')} disabled={processingId === req.id}>
-                {processingId === req.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Accept'}
-              </Button>
-            </div>
+      <CardContent className="space-y-6"> {/* Added space for separation */}
+
+        {/* --- 2. Render Pending Requests --- */}
+        <div className="space-y-2">
+          <h3 className="text-base font-semibold text-gray-800">Pending ({pendingRequests.length})</h3>
+          {pendingRequests.length > 0 ? (
+            pendingRequests.map(req => (
+              <div key={req.id} className="p-3 border rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold">{req.user.firstName} {req.user.lastName}</p>
+                  <p className="text-sm text-gray-500">{req.user.branch} • Class of {req.user.graduationYear}</p>
+                  {req.message && <p className="mt-1 text-sm text-gray-700 bg-gray-50 p-2 rounded">"{req.message}"</p>}
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button size="sm" variant="outline" onClick={() => handleResponse(req.id, 'reject')} disabled={processingId === req.id}>
+                    {processingId === req.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reject'}
+                  </Button>
+                  <Button size="sm" onClick={() => handleResponse(req.id, 'accept')} disabled={processingId === req.id}>
+                    {processingId === req.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Accept'}
+                  </Button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-center text-gray-500 py-4">No pending join requests.</p>
+          )}
+        </div>
+
+        {/* --- 3. Render Past Requests (History) --- */}
+        {pastRequests.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-base font-semibold text-gray-800">History ({pastRequests.length})</h3>
+            {pastRequests.map(req => (
+              <div key={req.id} className="p-3 border rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50/50 opacity-80">
+                <div>
+                  <p className="font-semibold">{req.user.firstName} {req.user.lastName}</p>
+                  <p className="text-sm text-gray-500">{req.user.branch} • Class of {req.user.graduationYear}</p>
+                </div>
+                <div className="flex-shrink-0">
+                  <Badge
+                    className={
+                      req.status === 'ACCEPTED'
+                        ? 'bg-green-100 text-green-800 border-green-200'
+                        : 'bg-red-100 text-red-800 border-red-200'
+                    }
+                    variant="outline"
+                  >
+                    {req.status}
+                  </Badge>
+                </div>
+              </div>
+            ))}
           </div>
-        )) : <p className="text-center text-gray-500 py-4">No pending join requests.</p>}
+        )}
+
       </CardContent>
     </Card>
   );
 }
 
 function ProjectEdit({ project, onProjectUpdate }) {
-    const [form, setForm] = useState({ title: '', description: '', category: '', maxTeamSize: '', problemStatement: '', goals: '', objectives: '', techStack: '', githubRepo: '', demoUrl: '' });
+  const [form, setForm] = useState({ title: '', description: '', category: '', maxTeamSize: '', problemStatement: '', goals: '', objectives: '', techStack: '', githubRepo: '', demoUrl: '' });
 
-    useEffect(() => {
-        setForm({
-            title: project.title || '', description: project.description || '', category: (project.category?.name || project.category || ''),
-            maxTeamSize: project.maxTeamSize || '', problemStatement: project.problemStatement || '',
-            goals: project.goals || '', objectives: project.objectives || '',
-            techStack: (project.techStackList || []).join(', '), githubRepo: project.githubRepo || '', demoUrl: project.demoUrl || ''
-        });
-    }, [project]);
+  useEffect(() => {
+    setForm({
+      title: project.title || '', description: project.description || '', category: (project.category?.name || project.category || ''),
+      maxTeamSize: project.maxTeamSize || '', problemStatement: project.problemStatement || '',
+      goals: project.goals || '', objectives: project.objectives || '',
+      techStack: (project.techStackList || []).join(', '), githubRepo: project.githubRepo || '', demoUrl: project.demoUrl || ''
+    });
+  }, [project]);
 
-    const handleChange = (e) => setForm({ ...form, [e.target.id]: e.target.value });
+  const handleChange = (e) => setForm({ ...form, [e.target.id]: e.target.value });
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            const payload = { ...form, techStack: form.techStack.split(',').map(s => s.trim()), maxTeamSize: Number(form.maxTeamSize) };
-            const res = await projectService.updateProject(project.id, payload);
-            alert("Project updated successfully!");
-            onProjectUpdate(res.data);
-        } catch (error) { alert("Failed to update project."); }
-    };
-    
-    return(
-        <Card><CardHeader><CardTitle>Edit Project Details</CardTitle></CardHeader>
-            <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><Label htmlFor="title">Title</Label><Input id="title" value={form.title} onChange={handleChange}/></div>
-                        <div><Label htmlFor="category">Category</Label><Input id="category" value={form.category} onChange={handleChange}/></div>
-                    </div>
-                    <div><Label htmlFor="description">Description</Label><Textarea id="description" value={form.description} onChange={handleChange}/></div>
-                    <div><Label htmlFor="problemStatement">Problem Statement</Label><Textarea id="problemStatement" value={form.problemStatement} onChange={handleChange}/></div>
-                    <div><Label htmlFor="goals">Goals</Label><Textarea id="goals" value={form.goals} onChange={handleChange}/></div>
-                    <div><Label htmlFor="techStack">Tech Stack (comma-separated)</Label><Input id="techStack" value={form.techStack} onChange={handleChange}/></div>
-                    <div><Label htmlFor="githubRepo">GitHub Repository</Label><Input id="githubRepo" value={form.githubRepo} onChange={handleChange}/></div>
-                    <Button type="submit"><Save className="h-4 w-4 mr-2"/>Save Changes</Button>
-                </form>
-            </CardContent>
-        </Card>
-    );
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = { ...form, techStack: form.techStack.split(',').map(s => s.trim()), maxTeamSize: Number(form.maxTeamSize) };
+      const res = await projectService.updateProject(project.id, payload);
+      alert("Project updated successfully!");
+      onProjectUpdate(res.data);
+    } catch (error) { alert("Failed to update project."); }
+  };
+
+  return (
+    <Card><CardHeader><CardTitle>Edit Project Details</CardTitle></CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><Label htmlFor="title">Title</Label><Input id="title" value={form.title} onChange={handleChange} /></div>
+            <div><Label htmlFor="category">Category</Label><Input id="category" value={form.category} onChange={handleChange} /></div>
+          </div>
+          <div><Label htmlFor="description">Description</Label><Textarea id="description" value={form.description} onChange={handleChange} /></div>
+          <div><Label htmlFor="problemStatement">Problem Statement</Label><Textarea id="problemStatement" value={form.problemStatement} onChange={handleChange} /></div>
+          <div><Label htmlFor="goals">Goals</Label><Textarea id="goals" value={form.goals} onChange={handleChange} /></div>
+          <div><Label htmlFor="techStack">Tech Stack (comma-separated)</Label><Input id="techStack" value={form.techStack} onChange={handleChange} /></div>
+          <div><Label htmlFor="githubRepo">GitHub Repository</Label><Input id="githubRepo" value={form.githubRepo} onChange={handleChange} /></div>
+          <Button type="submit"><Save className="h-4 w-4 mr-2" />Save Changes</Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
 }
 
 function ProjectSettings({ projectId }) {
-    const navigate = useNavigate();
-    const handleDelete = async () => {
-        try { await projectService.deleteProject(projectId); alert("Project deleted successfully."); navigate('/projects/my-projects'); }
-        catch (error) { alert("Failed to delete project."); }
-    };
+  const navigate = useNavigate();
+  const handleDelete = async () => {
+    try { await projectService.deleteProject(projectId); alert("Project deleted successfully."); navigate('/projects/my-projects'); }
+    catch (error) { alert("Failed to delete project."); }
+  };
 
-    return(
-        <Card className="border-red-500"><CardHeader><CardTitle>Project Settings</CardTitle></CardHeader>
-            <CardContent>
-                <div className="flex justify-between items-center">
-                    <div><h3 className="font-semibold">Delete Project</h3><p className="text-sm text-gray-600">This action is irreversible and will permanently delete the project.</p></div>
-                    <Dialog><DialogTrigger asChild><Button variant="destructive"><Trash2 className="h-4 w-4 mr-2"/>Delete</Button></DialogTrigger>
-                        <DialogContent><DialogHeader><DialogTitle>Are you absolutely sure?</DialogTitle><DialogDescription>This action cannot be undone.</DialogDescription></DialogHeader>
-                            <DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><Button variant="destructive" onClick={handleDelete}>Confirm Delete</Button></DialogFooter>
-                        </DialogContent>
-                    </Dialog>
-                </div>
-            </CardContent>
-        </Card>
-    );
+  return (
+    <Card className="border-red-500"><CardHeader><CardTitle>Project Settings</CardTitle></CardHeader>
+      <CardContent>
+        <div className="flex justify-between items-center">
+          <div><h3 className="font-semibold">Delete Project</h3><p className="text-sm text-gray-600">This action is irreversible and will permanently delete the project.</p></div>
+          <Dialog><DialogTrigger asChild><Button variant="destructive"><Trash2 className="h-4 w-4 mr-2" />Delete</Button></DialogTrigger>
+            <DialogContent><DialogHeader><DialogTitle>Are you absolutely sure?</DialogTitle><DialogDescription>This action cannot be undone.</DialogDescription></DialogHeader>
+              <DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><Button variant="destructive" onClick={handleDelete}>Confirm Delete</Button></DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 
@@ -548,7 +625,7 @@ export default function ProjectPage() {
   const { projectId } = useParams();
   const { userProfile } = useAuth();
   const navigate = useNavigate();
-  
+
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -558,22 +635,22 @@ export default function ProjectPage() {
   const [editForm, setEditForm] = useState({});
 
   const loadProjectData = async () => {
-    try { 
-      setLoading(true); 
-      setError(null); 
-      const response = await projectService.getProject(projectId); 
-      setProject(response); 
-    } catch (err) { 
-      setError('Failed to load project details.'); 
-    } finally { 
-      setLoading(false); 
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await projectService.getProject(projectId);
+      setProject(response);
+    } catch (err) {
+      setError('Failed to load project details.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => { 
-    if (projectId) { 
-      loadProjectData(); 
-    } 
+  useEffect(() => {
+    if (projectId) {
+      loadProjectData();
+    }
   }, [projectId]);
 
   // When project data loads or editing is cancelled, populate the edit form state
@@ -599,7 +676,7 @@ export default function ProjectPage() {
   const handleFormChange = (e) => {
     setEditForm({ ...editForm, [e.target.id]: e.target.value });
   };
-  
+
   const handleSelectChange = (field, value) => {
     setEditForm({ ...editForm, [field]: value });
   };
@@ -629,7 +706,7 @@ export default function ProjectPage() {
     setIsEditing(false);
   };
 
-  if (loading && !isEditing) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-16 w-16 animate-spin text-blue-600"/></div>;
+  if (loading && !isEditing) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-16 w-16 animate-spin text-blue-600" /></div>;
   if (error || !project) return <div className="flex h-screen items-center justify-center"><Alert variant="destructive" className="max-w-md"><AlertCircle className="h-4 w-4" /><AlertDescription>{error || 'Project not found.'}</AlertDescription></Alert></div>;
 
   const isProjectLead = project.lead?.id === userProfile?.id;
@@ -669,10 +746,10 @@ export default function ProjectPage() {
             </div>
             {/* --- ACTION BUTTONS --- */}
             <div className="flex gap-2 flex-shrink-0">
-               <Button variant="outline" size="sm" onClick={() => navigate(`/projects/${projectId}/rooms`)}><Users className="w-4 h-4 mr-2" />Meeting Rooms</Button>
+              <Button variant="outline" size="sm" onClick={() => navigate(`/projects/${projectId}/rooms`)}><Users className="w-4 h-4 mr-2" />Meeting Rooms</Button>
+              <Button variant="outline" size="sm" onClick={() => navigate(`/projects/${projectId}/invite`)}><UserPlus className="w-4 h-4 mr-2" />Invite</Button>
               {isProjectLead && !isEditing && (
                 <>
-                  <Button variant="outline" size="sm" onClick={() => navigate(`/projects/${projectId}/invite`)}><UserPlus className="w-4 h-4 mr-2" />Invite</Button>
                   <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}><Edit3 className="w-4 h-4 mr-2" />Edit</Button>
                 </>
               )}
@@ -695,15 +772,15 @@ export default function ProjectPage() {
           <TabsContent value="overview" className="mt-6 space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
-                <Card><CardHeader><CardTitle>Description</CardTitle></CardHeader><CardContent>{isEditing ? <Textarea id="description" value={editForm.description} onChange={handleFormChange} rows={5}/> : <p className="text-gray-700 leading-relaxed">{project.description}</p>}</CardContent></Card>
-                <Card><CardHeader><CardTitle>Problem Statement</CardTitle></CardHeader><CardContent>{isEditing ? <Textarea id="problemStatement" value={editForm.problemStatement} onChange={handleFormChange} rows={3}/> : <p className="text-gray-700">{project.problemStatement}</p>}</CardContent></Card>
+                <Card><CardHeader><CardTitle>Description</CardTitle></CardHeader><CardContent>{isEditing ? <Textarea id="description" value={editForm.description} onChange={handleFormChange} rows={5} /> : <p className="text-gray-700 leading-relaxed">{project.description}</p>}</CardContent></Card>
+                <Card><CardHeader><CardTitle>Problem Statement</CardTitle></CardHeader><CardContent>{isEditing ? <Textarea id="problemStatement" value={editForm.problemStatement} onChange={handleFormChange} rows={3} /> : <p className="text-gray-700">{project.problemStatement}</p>}</CardContent></Card>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card><CardHeader><CardTitle>Goals</CardTitle></CardHeader><CardContent>{isEditing ? <Textarea id="goals" value={editForm.goals} onChange={handleFormChange} rows={3}/> : <p className="text-gray-700">{project.goals}</p>}</CardContent></Card>
+                  <Card><CardHeader><CardTitle>Goals</CardTitle></CardHeader><CardContent>{isEditing ? <Textarea id="goals" value={editForm.goals} onChange={handleFormChange} rows={3} /> : <p className="text-gray-700">{project.goals}</p>}</CardContent></Card>
                   <Card>
                     <CardHeader><CardTitle>Objectives</CardTitle></CardHeader>
                     <CardContent>
                       {isEditing ? (
-                        <Textarea id="objectives" value={editForm.objectives} onChange={handleFormChange} rows={4} placeholder="Separate objectives with a comma"/>
+                        <Textarea id="objectives" value={editForm.objectives} onChange={handleFormChange} rows={4} placeholder="Separate objectives with a comma" />
                       ) : (
                         project.objectives?.includes(',') ? (
                           <ul className="space-y-2">
@@ -723,10 +800,10 @@ export default function ProjectPage() {
                 </div>
               </div>
               <div className="lg:col-span-1 space-y-6">
-                <Card><CardHeader><CardTitle>Team Size</CardTitle></CardHeader><CardContent>{isEditing ? <Input id="maxTeamSize" type="number" value={editForm.maxTeamSize} onChange={handleFormChange}/> : <p className="text-2xl font-bold">{project.currentTeamSize +1} / {project.maxTeamSize}</p>}</CardContent></Card>
-                <Card><CardHeader><CardTitle>Tech Stack</CardTitle></CardHeader><CardContent>{isEditing ? <Input id="techStackList" placeholder="Comma-separated" value={editForm.techStackList} onChange={handleFormChange}/> : <div className="flex flex-wrap gap-2">{(project.techStackList || []).map(tech => <Badge key={tech} variant="secondary">{tech}</Badge>)}</div>}</CardContent></Card>
-                <Card><CardHeader><CardTitle>Required Skills</CardTitle></CardHeader><CardContent>{isEditing ? <Input id="projectSkills" placeholder="Comma-separated" value={editForm.projectSkills} onChange={handleFormChange}/> : <div className="flex flex-wrap gap-2">{(project.projectSkills || []).map(ps => <Badge key={ps.id} variant="secondary">{ps.skill.name}</Badge>)}</div>}</CardContent></Card>
-                <Card><CardHeader><CardTitle>Links</CardTitle></CardHeader><CardContent className="space-y-2">{isEditing ? <><Input id="githubRepo" placeholder="GitHub URL" value={editForm.githubRepo} onChange={handleFormChange}/><Input id="demoUrl" placeholder="Demo URL" value={editForm.demoUrl} onChange={handleFormChange}/></> : <>{project.githubRepo && <a href={project.githubRepo} target="_blank" rel="noopener noreferrer">GitHub</a>}{project.demoUrl && <a href={project.demoUrl} target="_blank" rel="noopener noreferrer">Live Demo</a>}</>}</CardContent></Card>
+                <Card><CardHeader><CardTitle>Team Size</CardTitle></CardHeader><CardContent>{isEditing ? <Input id="maxTeamSize" type="number" value={editForm.maxTeamSize} onChange={handleFormChange} /> : <p className="text-2xl font-bold">{project.currentTeamSize + 1} / {project.maxTeamSize}</p>}</CardContent></Card>
+                <Card><CardHeader><CardTitle>Tech Stack</CardTitle></CardHeader><CardContent>{isEditing ? <Input id="techStackList" placeholder="Comma-separated" value={editForm.techStackList} onChange={handleFormChange} /> : <div className="flex flex-wrap gap-2">{(project.techStackList || []).map(tech => <Badge key={tech} variant="secondary">{tech}</Badge>)}</div>}</CardContent></Card>
+                <Card><CardHeader><CardTitle>Required Skills</CardTitle></CardHeader><CardContent>{isEditing ? <Input id="projectSkills" placeholder="Comma-separated" value={editForm.projectSkills} onChange={handleFormChange} /> : <div className="flex flex-wrap gap-2">{(project.projectSkills || []).map(ps => <Badge key={ps.id} variant="secondary">{ps.skill.name}</Badge>)}</div>}</CardContent></Card>
+                <Card><CardHeader><CardTitle>Links</CardTitle></CardHeader><CardContent className="space-y-2">{isEditing ? <><Input id="githubRepo" placeholder="GitHub URL" value={editForm.githubRepo} onChange={handleFormChange} /><Input id="demoUrl" placeholder="Demo URL" value={editForm.demoUrl} onChange={handleFormChange} /></> : <>{project.githubRepo && <a href={project.githubRepo} target="_blank" rel="noopener noreferrer">GitHub</a>}{project.demoUrl && <a href={project.demoUrl} target="_blank" rel="noopener noreferrer">Live Demo</a>}</>}</CardContent></Card>
                 {/* {project.lead && <Card><CardHeader><CardTitle>Project Lead</CardTitle></CardHeader><CardContent><h3>{project.lead.firstName} {project.lead.lastName}</h3><p className="text-sm text-gray-500">{project.lead.branch}</p></CardContent></Card>} */}
               </div>
             </div>

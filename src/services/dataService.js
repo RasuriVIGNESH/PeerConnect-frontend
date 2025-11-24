@@ -26,6 +26,29 @@ class DataService {
       throw new Error(error.message || 'Failed to get graduation years');
     }
   }
+  
+  // Get colleges - matches the /api/colleges endpoint
+  async getColleges() {
+    try {
+      console.log('DataService: Getting colleges...');
+      const response = await apiService.get('/collages');
+      console.log('DataService: Colleges response:', response);
+      
+      // Handle different response formats
+      if (response && Array.isArray(response)) {
+        return { data: response };
+      } else if (response && Array.isArray(response.data)) {
+        return response;
+      } else {
+        console.warn('DataService: Unexpected colleges response format:', response);
+        return { data: [] }; // Return empty array as fallback
+      }
+    } catch (error) {
+      console.error('DataService: Error getting colleges:', error);
+      // Return empty array instead of throwing to prevent registration form from breaking
+      return { data: [] };
+    }
+  }
 
   // Get project categories - matches StaticDataController endpoint
   async getProjectCategories() {

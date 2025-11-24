@@ -54,6 +54,7 @@ export default function InviteMembers() {
           displayName: student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim(),
           profileImage: student.profileImage || student.profilePicture || student.avatar || null,
           studentSkills: student.skills?.map(s => s.name || s) || [],
+          collegeName: student.collage?.name
         }));
 
         setStudents(processedStudents);
@@ -157,6 +158,9 @@ export default function InviteMembers() {
                   <div>
                     <CardTitle className="text-lg">{student.displayName}</CardTitle>
                     <CardDescription>{student.branch || 'No Branch'}</CardDescription>
+                    {student.collegeName && (
+                      <CardDescription>{student.collegeName}</CardDescription>
+                    )}
                   </div>
                 </div>
               </CardHeader>

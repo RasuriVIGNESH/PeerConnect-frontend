@@ -24,8 +24,18 @@ class ProjectService {
     }
   }
 
+  // Get projects by college
+  async getProjectsByCollege(collegeId) {
+    try {
+      return await apiService.get(`/projects/by-college/${collegeId}`);
+    } catch (error) {
+      console.error(`Failed to get projects for college ${collegeId}:`, error);
+      throw new Error(error.message || `Failed to get projects for college ${collegeId}`);
+    }
+  }
+
   // Get user's owned projects - matches ProjectController endpoint
-  async getMyProjects(page = 0, size = 20) {
+  async getMyProjects(page = 0, size = 6) {
     try {
       const params = { page, size };
       const response = await apiService.get('/projects/my-projects', params);
@@ -38,7 +48,7 @@ class ProjectService {
   }
 
   // Get joined projects - matches ProjectController endpoint
-  async getJoinedProjects(page = 0, size = 20) {
+  async getJoinedProjects(page = 0, size = 6) {
     try {
       const params = { page, size };
       return await apiService.get('/projects/joined', params);
@@ -49,7 +59,7 @@ class ProjectService {
   }
 
   // Get available projects - matches ProjectController endpoint
-  async getAvailableProjects(page = 0, size = 20) {
+  async getAvailableProjects(page = 0, size = 8) {
     try {
       const params = { page, size };
       return await apiService.get('/projects/available', params);
@@ -401,7 +411,7 @@ class ProjectService {
   }
 
   // Discover projects - matches ProjectController endpoint
-  async discoverProjects(page = 0, size = 20) {
+  async discoverProjects(page = 0, size = 8) {
     try {
       const params = { page, size };
       return await apiService.get('/projects/discover', params);
@@ -414,7 +424,7 @@ class ProjectService {
   // ===== UTILITY METHODS =====
 
   // Get all user projects (owned + joined)
-  async getAllUserProjects(page = 0, size = 50) {
+  async getAllUserProjects(page = 0, size = 6) {
     try {
       console.log('ProjectService: Getting all user projects...');
       

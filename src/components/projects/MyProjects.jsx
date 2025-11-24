@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  FolderOpen, Plus, Users, Calendar, ArrowLeft, Settings, Eye, Edit3, 
+import {
+  FolderOpen, Plus, Users, Calendar, ArrowLeft, Settings, Eye, Edit3,
   Trash2, Search, Filter, CheckCircle, Clock, User, X, AlertTriangle,
   Target, Briefcase, GraduationCap, Mail, ShieldCheck, CalendarDays
 } from 'lucide-react';
@@ -32,7 +32,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, projectTitle, loa
             </p>
           </div>
         </div>
-        
+
         <div className="bg-red-50 border border-red-200 rounded-lg p-3">
           <p className="text-sm text-red-800">
             ⚠️ This action cannot be undone. All project data, tasks, and member information will be permanently removed.
@@ -70,11 +70,13 @@ const MyProjects = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [categories, setCategories] = useState([]);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, project: null });
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     fetchMyProjects();
+    fetchCategories();
   }, [currentUser]);
 
   useEffect(() => {
@@ -92,6 +94,16 @@ const MyProjects = () => {
       setError('Failed to load projects. Please try again later.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const categoriesData = await projectService.getProjectCategories();
+      setCategories(categoriesData || []);
+    } catch (err) {
+      console.error('Error fetching project categories:', err);
+      // Don't set error state here to avoid blocking the main UI if categories fail to load
     }
   };
 
@@ -158,7 +170,7 @@ const MyProjects = () => {
     const now = new Date();
     const diffInMs = now - date;
     const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-    
+
     if (diffInDays === 0) return 'Today';
     if (diffInDays === 1) return 'Yesterday';
     if (diffInDays < 7) return `${diffInDays} days ago`;
@@ -250,12 +262,11 @@ const MyProjects = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">All Categories</SelectItem>
-                  <SelectItem value="Web Development">Web Development</SelectItem>
-                  <SelectItem value="Mobile App">Mobile App</SelectItem>
-                  <SelectItem value="AI/ML">AI/ML</SelectItem>
-                  <SelectItem value="IoT">IoT</SelectItem>
-                  <SelectItem value="Data Science">Data Science</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
+                  {categories.map(category => (
+                    <SelectItem key={category.id} value={category.name}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -303,9 +314,10 @@ const MyProjects = () => {
         ) : (
           <div className="grid grid-cols-3 lg:grid-cols-3 gap-5">
             {filteredProjects.map((project) => (
-              <Card 
-                key={project.id} 
-                className="hover:shadow-xl transition-all duration-300   border-gray-200 overflow-hidden group"
+              <Card
+                key={project.id}
+                className="hover:shadow-xl transition-all duration-300 border-gray-200 overflow-hidden group cursor-pointer"
+                onClick={() => navigate(`/projects/${project.id}`)}
               >
                 <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 pb-4">
                   <div className="flex items-start justify-between">
@@ -315,7 +327,7 @@ const MyProjects = () => {
                           {project.status.replace('_', ' ')}
                         </Badge>
                         <Badge variant="outline" className="bg-white">
-                          {project.category}
+                          {project.categoryName}
                         </Badge>
                         <span className="text-xs text-gray-500 ml-auto">
                           {getTimeAgo(project.createdAt)}
@@ -324,9 +336,9 @@ const MyProjects = () => {
                       <CardTitle className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
                         {project.title}
                       </CardTitle>
-                      <CardDescription className="mt-2 text-gray-600 line-clamp-2">
+                      {/* <CardDescription className="mt-2 text-gray-600 line-clamp-2">
                         {project.description}
-                      </CardDescription>
+                      </CardDescription> */}
                     </div>
                   </div>
                 </CardHeader>
@@ -338,7 +350,7 @@ const MyProjects = () => {
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-gray-500" />
                       <span className="text-gray-700">
-                        <span className="font-semibold text-gray-900">{project.currentTeamSize+1}</span>
+                        <span className="font-semibold text-gray-900">{project.currentTeamSize + 1}</span>
                         /{project.maxTeamSize} members
                       </span>
                     </div>
@@ -367,8 +379,8 @@ const MyProjects = () => {
                     </div>
                   </div>
 
-                
-                  
+
+
                   {/* Team Lead Info */}
                   {project.lead && (
                     <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
@@ -411,37 +423,6 @@ const MyProjects = () => {
                       </div>
                     </div>
                   )}
-
-                  {/* Action Buttons */}
-                  <div className="grid grid-cols-1 gap-2 pt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/projects/${project.id}`)}
-                      className="gap-2"
-                    >
-                      <Eye className="w-4 h-4" />
-                      View
-                    </Button>
-                    {/* <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/projects/${project.id}/edit`)}
-                      className="gap-2"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteClick(project)}
-                      className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Delete
-                    </Button> */}
-                  </div>
                 </CardContent>
               </Card>
             ))}

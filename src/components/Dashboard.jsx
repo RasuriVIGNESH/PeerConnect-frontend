@@ -6,11 +6,11 @@ import { dashboardService } from '../services/dashboardService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Users, 
-  FolderOpen, 
-  TrendingUp, 
-  LogOut, 
+import {
+  Users,
+  FolderOpen,
+  TrendingUp,
+  LogOut,
   Plus,
   Menu,
   User,
@@ -45,7 +45,7 @@ export default function Dashboard() {
 
     fetchDashboardData();
   }, []);
-  
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -99,7 +99,7 @@ export default function Dashboard() {
       iconColor: "text-violet-600",
     },
     {
-      title: "Connections",
+      title: "Notes",
       value: userProfile?.connectionCount || "0", // Backend integration
       icon: <Users className="h-5 w-5" />,
       description: "Students in network",
@@ -130,14 +130,14 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/30">
                 <Sparkles className="h-4 w-4 text-white" />
               </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                 PeerConnect
               </h1>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 {userProfile?.isCollegeVerified && (
@@ -146,14 +146,14 @@ export default function Dashboard() {
                   </Badge>
                 )}
               </div>
-              
+
               {/* Profile Image */}
               <Link to="/profile">
-                <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 flex items-center justify-center cursor-pointer hover:shadow-xl hover:shadow-purple-200 transition-all duration-300 hover:scale-105 ring-2 ring-white/50">
+                <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 via-purple-500 to-pink-500 flex items-center justify-center cursor-pointer hover:shadow-xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-105 ring-2 ring-white/50">
                   {userProfile?.profileImage ? (
-                    <img 
-                      src={userProfile.profileImage} 
-                      alt="Profile" 
+                    <img
+                      src={userProfile.profileImage}
+                      alt="Profile"
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
@@ -172,7 +172,7 @@ export default function Dashboard() {
                 >
                   <Menu className="h-5 w-5" />
                 </Button>
-                
+
                 {/* Dropdown Menu */}
                 {showMenu && (
                   <div className="absolute right-0 mt-2 w-48 bg-white/90 backdrop-blur-lg rounded-xl shadow-lg border border-white/20 py-2 z-50">
@@ -219,13 +219,13 @@ export default function Dashboard() {
         <div className="mb-8 flex justify-between items-start">
           <div>
             <h2 className="text-4xl font-bold text-gray-900 mb-2">
-              Welcome back, <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{userProfile?.firstName || currentUser?.email?.split('@')[0] || "User"}</span>
+              Welcome back, <span className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">{userProfile?.firstName || currentUser?.email?.split('@')[0] || "User"}</span>
             </h2>
             <p className="text-gray-600 text-lg">
               Ready to create something amazing today? ✨
             </p>
           </div>
-          
+
         </div>
 
         {/* Quick Actions - Only Start New Project and Browse Projects */}
@@ -233,7 +233,7 @@ export default function Dashboard() {
           <h3 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {quickActions.map((action, index) => (
-              <Card 
+              <Card
                 key={index}
                 className="cursor-pointer hover:shadow-xl hover:shadow-purple-200/50 transition-all duration-300 hover:scale-105 border-0 overflow-hidden group"
                 onClick={action.onClick}
@@ -251,12 +251,12 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
-        
+
         {/* Stats Grid - My Projects, Connections, Skills */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {stats.map((stat, index) => (
-            <Card 
-              key={index} 
+            <Card
+              key={index}
               className="cursor-pointer hover:shadow-xl hover:shadow-purple-200/50 transition-all duration-300 hover:scale-105 border-0 shadow-lg overflow-hidden group"
               onClick={stat.onClick}
             >
@@ -328,11 +328,11 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-      
+
       {/* Click outside to close dropdowns */}
       {showMenu && (
-        <div 
-          className="fixed inset-0 z-40" 
+        <div
+          className="fixed inset-0 z-40"
           onClick={() => {
             setShowMenu(false);
           }}

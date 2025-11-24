@@ -3,14 +3,29 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Search, Users, UserPlus, Eye, Calendar } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { 
+  Search, 
+  Users, 
+  UserPlus, 
+  Eye, 
+  Calendar,
+  Loader2,
+  Target,
+  CheckCircle2,
+  Send,
+  Briefcase,
+  TrendingUp,
+  Filter,
+  X
+} from 'lucide-react';
 
 import projectService from '../../services/projectService';
 import skillsService from '../../services/skillsService';
@@ -23,26 +38,27 @@ export default function ProjectDiscovery() {
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState([]);
   const [filteredProjects, setFilteredProjects] = useState([]);
-  const [userSkills, setUserSkills] = useState([]);
   const [error, setError] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [joinRequestMessage, setJoinRequestMessage] = useState('');
   const [sentRequests, setSentRequests] = useState(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [filterByCollege, setFilterByCollege] = useState(false);
 
   useEffect(() => {
-    // Encapsulate all loading logic into one function
     const loadAllData = async () => {
       setLoading(true);
       setError(null);
       try {
-        // Run fetches in parallel for better performance
-        await Promise.all([
-          loadUserSkills(),
-          loadProjectsData(),
-          loadSentRequests()
-        ]);
+        if (filterByCollege && currentUser.collegeId) {
+          const collegeProjects = await projectService.getProjectsByCollege(currentUser.collegeId);
+          setProjects(collegeProjects.data || []);
+        } else {
+          await loadProjectsData();
+        }
+        await loadSentRequests();
       } catch (err) {
         console.error("Failed to load initial data:", err);
         setError("Could not load discovery data. Please try again.");
@@ -53,13 +69,12 @@ export default function ProjectDiscovery() {
     if (currentUser) {
       loadAllData();
     }
-  }, [currentUser]);
+  }, [currentUser, filterByCollege]);
 
   useEffect(() => {
     applyFilters();
   }, [projects, searchTerm]);
 
-  // Fetch sent join requests by this user
   async function loadSentRequests() {
     try {
       const response = await joinRequestService.getMyJoinRequests();
@@ -67,26 +82,25 @@ export default function ProjectDiscovery() {
       setSentRequests(sentProjectIds);
     } catch (error) {
       console.error("Could not load user's sent requests:", error);
-      // Non-critical error
     }
   }
 
-  // Handle join request sending
   const handleJoinRequest = async () => {
     if (!selectedProject) return;
+    setIsSubmitting(true);
     try {
       await joinRequestService.sendJoinRequest(selectedProject.id, joinRequestMessage);
-      alert('Your request to join the project has been sent!');
       setSentRequests(prev => new Set(prev).add(selectedProject.id));
       setIsModalOpen(false);
       setJoinRequestMessage('');
     } catch (error) {
       console.error('Failed to send join request:', error);
       alert(`Error: ${error.message || 'Could not send join request.'}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Fetch projects and transform skills field
   async function loadProjectsData() {
     const response = await projectService.discoverProjects(0, 50);
     const projectsData = response.content || [];
@@ -99,19 +113,6 @@ export default function ProjectDiscovery() {
     setProjects(processedProjects);
   }
 
-  // Fetch user skills list for personalization/filter suggestions (optional use)
-  async function loadUserSkills() {
-    try {
-      const response = await skillsService.getUserSkills();
-      const skillsData = response.data || [];
-      const skillNames = skillsData.map(s => s.skill?.name).filter(Boolean);
-      setUserSkills(skillNames);
-    } catch (error) {
-      console.error('Error loading user skills:', error);
-    }
-  }
-
-  // Main search/filter algorithm
   function applyFilters() {
     let filtered = [...projects];
     if (searchTerm) {
@@ -125,96 +126,199 @@ export default function ProjectDiscovery() {
     setFilteredProjects(filtered);
   }
 
-  // Modal pop up to show project details
   const handleViewDetails = (project) => {
     setSelectedProject(project);
     setIsModalOpen(true);
   };
 
+  const getStatusColor = (status) => {
+    const colors = {
+      'RECRUITING': 'bg-green-500/10 text-green-700 border-green-500/20',
+      'IN_PROGRESS': 'bg-blue-500/10 text-blue-700 border-blue-500/20',
+      'COMPLETED': 'bg-gray-500/10 text-gray-700 border-gray-500/20',
+      'ON_HOLD': 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20'
+    };
+    return colors[status] || colors['RECRUITING'];
+  };
+
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <div className="animate-spin h-10 w-10 border-4 border-gray-500 border-t-transparent rounded-full mb-4" />
-        <span className="text-gray-500">Loading projects...</span>
+      <div className="flex flex-col items-center justify-center min-h-[600px]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <span className="text-muted-foreground text-lg">Discovering amazing projects...</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center text-red-600 py-12">
-        <b>Error:</b> {error}
+      <div className="container mx-auto px-4 py-12">
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10 min-h-screen">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">Discover Projects</h1>
-        <div className="flex gap-4">
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
+      {/* Header Section */}
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent mb-2">
+          Discover Projects
+        </h1>
+        <p className="text-muted-foreground text-lg">
+          Find exciting projects that match your skills and interests
+        </p>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="mb-8 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search by title, description, or skill"
+            placeholder="Search by title, description, or skill..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-60"
-            startIcon={<Search />}
+            className="pl-10"
           />
+          {searchTerm && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0"
+              onClick={() => setSearchTerm('')}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="text-sm">
+            {filteredProjects.length} {filteredProjects.length === 1 ? 'Project' : 'Projects'}
+          </Badge>
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="college-filter"
+              checked={filterByCollege}
+              onChange={(e) => setFilterByCollege(e.target.checked)}
+              className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+            />
+            <label htmlFor="college-filter" className="text-sm font-medium text-gray-700">
+              Projects from My College
+            </label>
+          </div>
         </div>
       </div>
 
+      {/* Projects Grid */}
       {filteredProjects.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-lg text-gray-500 mb-2">No Projects Found</p>
-          <p className="text-gray-400">Try adjusting your search or check back later!</p>
+        <div className="text-center py-20 bg-muted/30 rounded-lg border-2 border-dashed">
+          <Briefcase className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+          <p className="text-xl font-semibold text-foreground mb-2">No Projects Found</p>
+          <p className="text-muted-foreground">
+            {searchTerm ? 'Try adjusting your search terms' : 'Check back later for new projects!'}
+          </p>
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProjects.map((project) => (
-            <Card key={project.id} className="shadow-md p-4 flex flex-col">
-              <CardHeader>
-                <CardTitle className="text-xl font-bold">{project.title}</CardTitle>
-                <div className="flex items-center gap-2 mt-2">
-                  <Badge>{project.category}</Badge>
-                  <Badge variant="secondary">{project.status}</Badge>
+            <Card key={project.id} className="group hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/20 flex flex-col">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/50 via-primary to-primary/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+              
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <Badge className="bg-primary/10 text-primary border-primary/20">
+                    {project.categoryName}
+                  </Badge>
+                  <Badge className={`${getStatusColor(project.status)} border`}>
+                    {project.status.replace('_', ' ')}
+                  </Badge>
                 </div>
+                <CardTitle className="text-xl font-bold group-hover:text-primary transition-colors">
+                  {project.title}
+                </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="mt-2 text-gray-600 line-clamp-2">{project.description}</p>
-                <div className="mt-2">
-                  <span className="font-semibold text-gray-800">Required Skills: </span>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {project.requiredSkills.length > 0
-                      ? project.requiredSkills.map((skill, idx) =>
-                          <Badge key={idx} className="bg-blue-100 text-blue-900">{skill}</Badge>
-                        )
-                      : <span className="text-sm text-gray-400">None specified</span>
-                    }
+
+              <CardContent className="flex-1 space-y-4 pb-4">
+                <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                  {project.description}
+                </p>
+
+                {project.requiredSkills && project.requiredSkills.length > 0 && (
+                  <div>
+                    <div className="text-xs font-semibold text-muted-foreground mb-2">Required Skills</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {project.requiredSkills.slice(0, 4).map((skill, idx) => (
+                        <Badge key={idx} variant="secondary" className="text-xs bg-blue-500/10 text-blue-700 border-blue-500/20">
+                          {skill}
+                        </Badge>
+                      ))}
+                      {project.requiredSkills.length > 4 && (
+                        <Badge variant="secondary" className="text-xs">
+                          +{project.requiredSkills.length - 4}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center mt-4">
-                  <Users className="w-4 h-4 mr-1 text-gray-400" />
-                  <span className="text-sm text-gray-700">{project.currentTeamSize}/{project.maxTeamSize} members</span>
+                )}
+
+                <div className="flex items-center gap-4 pt-2 border-t">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Users className="h-4 w-4" />
+                    <span className="font-medium">
+                      {project.currentTeamSize+1}/{project.maxTeamSize}
+                    </span>
+                  </div>
+                  {project.lead && (
+                    <div className="flex items-center gap-2">
+                      <Avatar className="h-6 w-6">
+                        {project.lead.profilePictureUrl ? (
+                          <AvatarImage src={project.lead.profilePictureUrl} />
+                        ) : (
+                          <AvatarFallback className="text-xs">
+                            {project.lead.firstName?.[0]}{project.lead.lastName?.[0]}
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {project.lead.firstName} {project.lead.lastName}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
-              <div className="flex justify-end gap-2 p-4 pt-0 mt-auto">
+
+              <CardFooter className="flex gap-2 bg-muted/30 border-t p-4">
                 <Button
                   variant="outline"
                   size="sm"
+                  className="flex-1"
                   onClick={() => handleViewDetails(project)}
                 >
-                  <Eye className="w-4 h-4 mr-1" />
-                  View Details
+                  <Eye className="h-4 w-4 mr-2" />
+                  Details
                 </Button>
                 <Button
                   size="sm"
+                  className="flex-1"
                   disabled={sentRequests.has(project.id)}
                   onClick={() => handleViewDetails(project)}
                 >
-                  <UserPlus className="w-4 h-4 mr-1" />
-                  {sentRequests.has(project.id) ? 'Requested' : 'Join'}
+                  {sentRequests.has(project.id) ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Requested
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Join
+                    </>
+                  )}
                 </Button>
-              </div>
+              </CardFooter>
             </Card>
           ))}
         </div>
@@ -222,80 +326,152 @@ export default function ProjectDiscovery() {
 
       {/* Project Details Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           {selectedProject && (
             <>
               <DialogHeader>
-                <DialogTitle className="text-2xl font-bold">{selectedProject.title}</DialogTitle>
-                <div className="text-gray-500 mb-2">{selectedProject.description}</div>
-                <div className="flex gap-2 mt-1 mb-3">
-                  <Badge>{selectedProject.category}</Badge>
-                  <Badge variant="secondary">{selectedProject.status}</Badge>
-                </div>
-                <div>
-                  <span className="font-semibold">Problem Statement:</span>
-                  <p className="text-gray-700 mt-1">{selectedProject.problemStatement || 'Not specified'}</p>
-                </div>
-                <div className="mt-3">
-                  <span className="font-semibold">Goals:</span>
-                  <p className="text-gray-700 mt-1">{selectedProject.goals || 'Not specified'}</p>
-                </div>
-                <div className="mt-3">
-                  <span className="font-semibold">Requirements:</span>
-                  <p className="text-gray-700 mt-1">{selectedProject.requirements || 'Not specified'}</p>
-                </div>
-                <div className="mt-3">
-                  <span className="font-semibold">Required Skills:</span>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {selectedProject.requiredSkills.length > 0
-                      ? selectedProject.requiredSkills.map((skill, idx) =>
-                          <Badge key={idx} className="bg-blue-100 text-blue-900">{skill}</Badge>
-                        )
-                      : <span className="text-sm text-gray-400">None specified</span>
-                    }
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <div className="flex-1">
+                    <DialogTitle className="text-2xl font-bold mb-2">{selectedProject.title}</DialogTitle>
+                    <DialogDescription className="text-base">{selectedProject.description}</DialogDescription>
                   </div>
                 </div>
-                <div className="mt-3">
-                  <span className="font-semibold">Timeline:</span>
-                  <p className="text-gray-600 text-sm">
-                    {selectedProject.expectedStartDate} → {selectedProject.expectedEndDate}
-                  </p>
-                </div>
-                <div className="mt-3 flex flex-col gap-1">
-                  <span className="font-semibold">Project Lead:</span>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Avatar className="w-8 h-8">
-                      {selectedProject.lead?.profilePictureUrl
-                        ? <AvatarImage src={selectedProject.lead.profilePictureUrl} alt="Lead Avatar" />
-                        : <AvatarFallback>
-                            {selectedProject.lead?.firstName?.[0]}
-                            {selectedProject.lead?.lastName?.[0]}
-                          </AvatarFallback>
-                      }
-                    </Avatar>
-                    <div>
-                      <span className="font-medium">
-                        {selectedProject.lead?.firstName} {selectedProject.lead?.lastName}
-                      </span>
-                      <span className="ml-2 text-xs text-gray-600">
-                        ({selectedProject.lead?.branch}, Class of {selectedProject.lead?.graduationYear})
-                      </span>
-                    </div>
-                  </div>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <Badge className="bg-primary/10 text-primary border-primary/20">
+                    {selectedProject.categoryName}
+                  </Badge>
+                  <Badge className={`${getStatusColor(selectedProject.status)} border`}>
+                    {selectedProject.status.replace('_', ' ')}
+                  </Badge>
                 </div>
               </DialogHeader>
-              <div className="mt-4">
-                <label className="font-semibold">Leave an optional message</label>
-                <Textarea
-                  placeholder="Tell the project lead why you'd be a great fit..."
-                  value={joinRequestMessage}
-                  onChange={e => setJoinRequestMessage(e.target.value)}
-                  className="mt-1"
-                />
+
+              <div className="space-y-5 py-4">
+                {selectedProject.goals && (
+                  <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg p-4 border border-primary/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Target className="h-5 w-5 text-primary" />
+                      <span className="font-semibold text-foreground">Goals</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{selectedProject.goals}</p>
+                  </div>
+                )}
+
+                {selectedProject.requirements && (
+                  <div className="bg-muted/30 rounded-lg p-4 border">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp className="h-5 w-5 text-foreground" />
+                      <span className="font-semibold text-foreground">Requirements</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+                      {selectedProject.requirements}
+                    </p>
+                  </div>
+                )}
+
+                {selectedProject.requiredSkills && selectedProject.requiredSkills.length > 0 && (
+                  <div>
+                    <div className="font-semibold text-foreground mb-2">Required Skills</div>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedProject.requiredSkills.map((skill, idx) => (
+                        <Badge key={idx} variant="secondary" className="bg-blue-500/10 text-blue-700 border-blue-500/20">
+                          {skill}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-8 text-sm bg-muted/30 rounded-lg p-4 border">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <div className="text-xs text-muted-foreground">Team Size</div>
+                      <div className="font-semibold">{selectedProject.currentTeamSize+1}/{selectedProject.maxTeamSize}</div>
+                    </div>
+                  </div>
+                  {selectedProject.createdAt && (
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <div className="text-xs text-muted-foreground">Created</div>
+                        <div className="font-semibold">
+                          {new Date(selectedProject.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {selectedProject.lead && (
+                  <div className="bg-gradient-to-br from-muted/30 to-muted/50 rounded-lg p-4 border">
+                    <div className="font-semibold text-foreground mb-3">Project Lead</div>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-12 w-12 border-2 border-primary/20">
+                        {selectedProject.lead.profilePictureUrl ? (
+                          <AvatarImage src={selectedProject.lead.profilePictureUrl} />
+                        ) : (
+                          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                            {selectedProject.lead.firstName?.[0]}{selectedProject.lead.lastName?.[0]}
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                      <div>
+                        <div className="font-semibold text-foreground">
+                          {selectedProject.lead.firstName} {selectedProject.lead.lastName}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {selectedProject.lead.branch}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Class of {selectedProject.lead.graduationYear}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!sentRequests.has(selectedProject.id) && (
+                  <div>
+                    <label className="font-semibold text-foreground block mb-2">
+                      Message to Project Lead
+                      <span className="text-xs text-muted-foreground font-normal ml-2">(Optional)</span>
+                    </label>
+                    <Textarea
+                      placeholder="Tell the project lead why you'd be a great fit for this project..."
+                      value={joinRequestMessage}
+                      onChange={e => setJoinRequestMessage(e.target.value)}
+                      className="resize-none"
+                      rows={4}
+                    />
+                  </div>
+                )}
               </div>
-              <DialogFooter className="mt-2 flex justify-between">
-                <Button variant="outline" onClick={() => setIsModalOpen(false)}>Close</Button>
-                <Button onClick={handleJoinRequest}>Send Join Request</Button>
+
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+                  Close
+                </Button>
+                {!sentRequests.has(selectedProject.id) ? (
+                  <Button onClick={handleJoinRequest} disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        Send Join Request
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <Button disabled>
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Request Sent
+                  </Button>
+                )}
               </DialogFooter>
             </>
           )}

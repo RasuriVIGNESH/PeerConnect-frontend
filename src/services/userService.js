@@ -54,11 +54,11 @@ class UserService {
     async searchUsers(searchParams) {
         try {
             const queryParams = new URLSearchParams();
-            
+
             // FIXED: Use 'name' instead of 'search' to match UserController
             if (searchParams.search) queryParams.append('name', searchParams.search);
             if (searchParams.name) queryParams.append('name', searchParams.name);
-            
+
             // These match the UserController parameters
             if (searchParams.skills) {
                 if (Array.isArray(searchParams.skills)) {
@@ -69,11 +69,11 @@ class UserService {
             }
             if (searchParams.branch) queryParams.append('branch', searchParams.branch);
             if (searchParams.graduationYear) queryParams.append('graduationYear', searchParams.graduationYear);
-            
+
             // FIXED: Use 'availabilityStatus' to match UserController
             if (searchParams.availability) queryParams.append('availabilityStatus', searchParams.availability);
             if (searchParams.availabilityStatus) queryParams.append('availabilityStatus', searchParams.availabilityStatus);
-            
+
             if (searchParams.page) queryParams.append('page', searchParams.page);
             if (searchParams.size) queryParams.append('size', searchParams.size);
             if (searchParams.sortBy) queryParams.append('sortBy', searchParams.sortBy);
@@ -91,7 +91,7 @@ class UserService {
     async discoverUsers(filters = {}) {
         try {
             const queryParams = new URLSearchParams();
-            
+
             // Match UserController parameters exactly
             if (filters.skills) {
                 if (Array.isArray(filters.skills)) {
@@ -105,7 +105,7 @@ class UserService {
             if (filters.availabilityStatus) queryParams.append('availabilityStatus', filters.availabilityStatus);
             if (filters.page) queryParams.append('page', filters.page);
             if (filters.size) queryParams.append('size', filters.size);
-            
+
             const queryString = queryParams.toString();
             const endpoint = queryString ? `/users/discover?${queryString}` : '/users/discover';
             return await apiService.get(endpoint);
@@ -124,17 +124,38 @@ class UserService {
         }
     }
 
-    // Upload profile picture - This endpoint doesn't exist in UserController
-    // You may need to implement this in the backend or remove this method
+    // Upload profile photo (PUT /api/users/profile-photo)
     async uploadProfilePicture(file) {
         try {
             if (!file) {
                 throw new Error('File is required');
             }
-            // This endpoint doesn't exist in the backend - needs to be implemented
-            throw new Error('Profile picture upload not implemented in backend');
+
+            const formData = new FormData();
+            formData.append('profilePhoto', file);
+
+            // Use custom headers to avoid setting Content-Type so browser sets multipart boundary
+            const token = apiService.getToken();
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+            return await apiService.request('/users/profile-photo', {
+                method: 'POST',
+                body: formData,
+                headers
+            });
         } catch (error) {
-            throw new Error(error.message || 'Failed to upload profile picture');
+            console.error('Upload profile photo error:', error);
+            throw new Error(error.message || 'Failed to upload profile photo');
+        }
+    }
+
+    // Delete profile photo (DELETE /api/users/profile-photo)
+    async deleteProfilePhoto() {
+        try {
+            return await apiService.delete('/users/profile-photo');
+        } catch (error) {
+            console.error('Delete profile photo error:', error);
+            throw new Error(error.message || 'Failed to delete profile photo');
         }
     }
 

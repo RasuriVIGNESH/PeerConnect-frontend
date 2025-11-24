@@ -17,13 +17,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 // Step Indicator for Progress Bar
 const StepIndicator = ({ step, active, completed, title, icon }) => (
   <div className="flex flex-col items-center space-y-2 text-center w-24">
-    <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
-      completed
-        ? 'bg-black text-white border-black'
-        : active
+    <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${completed
+      ? 'bg-black text-white border-black'
+      : active
         ? 'bg-white border-black text-black shadow-lg'
         : 'bg-gray-100 border-gray-300 text-gray-400'
-    }`}>
+      }`}>
       {completed ? <Check className="h-5 w-5" /> : icon}
     </div>
     <span className={`text-xs font-medium ${active || completed ? 'text-black' : 'text-gray-400'}`}>
@@ -194,17 +193,17 @@ export default function CreateProject() {
         ...formData,
         // 1. Convert maxTeamSize from a string to a number
         maxTeamSize: parseInt(formData.maxTeamSize, 10),
-        
+
         // 2. Map the frontend 'category' field to the backend 'categoryName'
         categoryName: formData.category,
       };
-      
+
       // 3. Remove the now-redundant 'category' key
-      delete payload.category; 
+      delete payload.category;
 
       // Send the corrected payload to the service
       await projectService.createProject(payload);
-      
+
       setMessage('Project created successfully! Redirecting to dashboard...');
       setTimeout(() => navigate('/dashboard'), 2000);
     } catch (err) {
@@ -237,14 +236,14 @@ export default function CreateProject() {
                   {formData.title.length}/100 (min 5)
                 </p>
               </div>
-              
+
               <div>
                 <Label htmlFor="problemStatement" className="font-medium text-gray-700">Problem Statement *</Label>
                 <Textarea
                   id="problemStatement" value={formData.problemStatement} onChange={e => handleInputChange('problemStatement', e.target.value)}
                   placeholder="What problem are you solving?" rows={3} className="mt-1" maxLength={1000}
                 />
-                 <p className="text-xs text-gray-500 mt-1">{formData.problemStatement.length}/1000</p>
+                <p className="text-xs text-gray-500 mt-1">{formData.problemStatement.length}/1000</p>
               </div>
               <div>
                 <Label htmlFor="description" className="font-medium text-gray-700">Project Description *</Label>
@@ -255,27 +254,27 @@ export default function CreateProject() {
                 <p className={`text-xs mt-1 ${formData.description.length < 10 ? 'text-red-600' : 'text-gray-500'}`}>
                   {formData.description.length}/1000 (min 10)
                 </p>
-              </div> 
+              </div>
               <div>
-              <Label htmlFor="category" className="font-medium text-gray-700">Category *</Label>
-              <Select value={formData.category} onValueChange={handleCategoryChange} disabled={isLoadingCategories}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder={isLoadingCategories ? "Loading..." : "Select a category"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {projectCategories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.name}>
-                      {cat.name}
+                <Label htmlFor="category" className="font-medium text-gray-700">Category *</Label>
+                <Select value={formData.category} onValueChange={handleCategoryChange} disabled={isLoadingCategories}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder={isLoadingCategories ? "Loading..." : "Select a category"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projectCategories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.name}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="create_new" className="text-blue-600">
+                      <span className="flex items-center gap-2">
+                        <PlusCircle className="h-4 w-4" /> Create New Category
+                      </span>
                     </SelectItem>
-                  ))}
-                  <SelectItem value="create_new" className="text-blue-600">
-                    <span className="flex items-center gap-2">
-                      <PlusCircle className="h-4 w-4" /> Create New Category
-                    </span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardContent>
           </Card>
         );
@@ -295,7 +294,7 @@ export default function CreateProject() {
                   id="goals" value={formData.goals} onChange={e => handleInputChange('goals', e.target.value)}
                   placeholder="What are the main goals? (e.g., develop a fully functional prototype)" rows={3} className="mt-1" maxLength={1000}
                 />
-                 <p className="text-xs text-gray-500 mt-1">{formData.goals.length}/1000</p>
+                <p className="text-xs text-gray-500 mt-1">{formData.goals.length}/1000</p>
               </div>
               <div>
                 <Label htmlFor="objectives" className="font-medium text-gray-700">Objectives *</Label>
@@ -303,7 +302,7 @@ export default function CreateProject() {
                   id="objectives" value={formData.objectives} onChange={e => handleInputChange('objectives', e.target.value)}
                   placeholder="List specific, measurable objectives. (e.g., user authentication, project creation feature)" rows={3} className="mt-1" maxLength={1000}
                 />
-                 <p className="text-xs text-gray-500 mt-1">{formData.objectives.length}/1000</p>
+                <p className="text-xs text-gray-500 mt-1">{formData.objectives.length}/1000</p>
               </div>
               <div>
                 <Label htmlFor="requirements" className="font-medium text-gray-700">Requirements *</Label>
@@ -311,7 +310,7 @@ export default function CreateProject() {
                   id="requirements" value={formData.requirements} onChange={e => handleInputChange('requirements', e.target.value)}
                   placeholder="What are the specific requirements? (e.g., must be responsive, use React for frontend)" rows={3} className="mt-1" maxLength={1000}
                 />
-                 <p className="text-xs text-gray-500 mt-1">{formData.requirements.length}/1000</p>
+                <p className="text-xs text-gray-500 mt-1">{formData.requirements.length}/1000</p>
               </div>
             </CardContent>
           </Card>
@@ -332,7 +331,7 @@ export default function CreateProject() {
                   id="maxTeamSize" type="number" value={formData.maxTeamSize} onChange={e => handleInputChange('maxTeamSize', e.target.value)}
                   placeholder="e.g., 5" min="2" max="20" className="mt-1"
                 />
-                 <p className="text-xs text-gray-500 mt-1">Between 2 and 20 members.</p>
+                <p className="text-xs text-gray-500 mt-1">Between 2 and 20 members.</p>
               </div>
 
               <div>
@@ -358,12 +357,12 @@ export default function CreateProject() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <Label htmlFor="expectedStartDate" className="font-medium text-gray-700">Expected Start Date</Label>
-                    <Input id="expectedStartDate" type="date" value={formData.expectedStartDate} onChange={e => handleInputChange('expectedStartDate', e.target.value)} className="mt-1" />
+                  <Label htmlFor="expectedStartDate" className="font-medium text-gray-700">Expected Start Date</Label>
+                  <Input id="expectedStartDate" type="date" value={formData.expectedStartDate} onChange={e => handleInputChange('expectedStartDate', e.target.value)} className="mt-1" />
                 </div>
                 <div>
-                    <Label htmlFor="expectedEndDate" className="font-medium text-gray-700">Expected End Date</Label>
-                    <Input id="expectedEndDate" type="date" value={formData.expectedEndDate} onChange={e => handleInputChange('expectedEndDate', e.target.value)} className="mt-1" />
+                  <Label htmlFor="expectedEndDate" className="font-medium text-gray-700">Expected End Date</Label>
+                  <Input id="expectedEndDate" type="date" value={formData.expectedEndDate} onChange={e => handleInputChange('expectedEndDate', e.target.value)} className="mt-1" />
                 </div>
               </div>
 
@@ -391,7 +390,7 @@ export default function CreateProject() {
           <h1 className="text-3xl font-bold text-gray-800">Create a New Project</h1>
           <p className="mt-2 text-gray-600">Follow the steps below to bring your idea to life.</p>
         </div>
-        
+
         <div className="mb-10 flex justify-center space-x-4 sm:space-x-8">
           <StepIndicator step={1} active={currentStep === 1} completed={completedSteps.includes(1)} title="Core Idea" icon={<Briefcase />} />
           <StepIndicator step={2} active={currentStep === 2} completed={completedSteps.includes(2)} title="Project Scope" icon={<Target />} />
@@ -399,30 +398,30 @@ export default function CreateProject() {
         </div>
 
         <form onSubmit={handleSubmit}>
-            {renderStepContent()}
+          {renderStepContent()}
 
-            {error && <Alert variant="destructive" className="max-w-2xl mx-auto mt-6"><AlertDescription>{error}</AlertDescription></Alert>}
-            {message && <Alert className="max-w-2xl mx-auto mt-6 bg-green-50 border-green-200 text-green-800"><AlertDescription>{message}</AlertDescription></Alert>}
+          {error && <Alert variant="destructive" className="max-w-2xl mx-auto mt-6"><AlertDescription>{error}</AlertDescription></Alert>}
+          {message && <Alert className="max-w-2xl mx-auto mt-6 bg-green-50 border-green-200 text-green-800"><AlertDescription>{message}</AlertDescription></Alert>}
 
-            <div className="max-w-2xl mx-auto mt-6 flex justify-between">
+          <div className="max-w-2xl mx-auto mt-6 flex justify-between">
             {currentStep > 1 ? (
-                <Button type="button" onClick={handlePrevious} disabled={loading} variant="outline">
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Previous
-                </Button>
+              <Button type="button" onClick={handlePrevious} disabled={loading} variant="outline">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Previous
+              </Button>
             ) : <div />}
-            
+
             {currentStep < 3 ? (
-                <Button type="button" onClick={handleNext} disabled={loading}>
-                    Next
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
+              <Button type="button" onClick={handleNext} disabled={loading}>
+                Next
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
             ) : (
-                <Button type="submit" disabled={loading || !!message}>
-                    {loading ? 'Creating...' : 'Create Project'}
-                </Button>
+              <Button type="submit" disabled={loading || !!message}>
+                {loading ? 'Creating...' : 'Create Project'}
+              </Button>
             )}
-            </div>
+          </div>
         </form>
         {/* --- DIALOG FOR CREATING A NEW CATEGORY --- */}
         <Dialog open={showCategoryDialog} onOpenChange={setShowCategoryDialog}>

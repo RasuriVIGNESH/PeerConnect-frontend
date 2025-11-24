@@ -3,25 +3,54 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SentRequestsTab from './SentRequestsTab';
-import ReceivedRequestsTab from './ReceivedRequestsTab';
-import { ArrowUpRightFromSquare, Inbox } from 'lucide-react';
+import InvitationsTab from './InvitationsTab';
+import ProjectRequestsTab from './ProjectRequestsTab';
+import { Inbox, Users, Send } from 'lucide-react';
 
 export default function RequestsPage() {
   return (
-    <div className="container mx-auto py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Requests & Invitations</h1>
-        <p className="text-muted-foreground">Manage your sent project requests and received invitations.</p>
+    <div className="container mx-auto py-8 px-4 max-w-7xl">
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+          Requests & Invitations
+        </h1>
+        <p className="text-muted-foreground mt-2 text-lg">
+          Manage your project invitations and collaboration requests
+        </p>
       </div>
-      <Tabs defaultValue="received">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="received"><Inbox className="h-4 w-4 mr-2" />Received</TabsTrigger>
-          <TabsTrigger value="sent"><ArrowUpRightFromSquare className="h-4 w-4 mr-2" />Sent</TabsTrigger>
+      
+      <Tabs defaultValue="invitations" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3 p-1 bg-muted/50 h-auto">
+          <TabsTrigger 
+            value="invitations" 
+            className="data-[state=active]:bg-background data-[state=active]:shadow-sm py-3"
+          >
+            <Inbox className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">My </span>Invitations
+          </TabsTrigger>
+          <TabsTrigger 
+            value="project-requests" 
+            className="data-[state=active]:bg-background data-[state=active]:shadow-sm py-3"
+          >
+            <Users className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">Project </span>Requests
+          </TabsTrigger>
+          <TabsTrigger 
+            value="sent" 
+            className="data-[state=active]:bg-background data-[state=active]:shadow-sm py-3"
+          >
+            <Send className="h-4 w-4 mr-2" />
+            Sent<span className="hidden sm:inline"> Requests</span>
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="received" className="mt-4">
-          <ReceivedRequestsTab />
+        
+        <TabsContent value="invitations" className="mt-6">
+          <InvitationsTab />
         </TabsContent>
-        <TabsContent value="sent" className="mt-4">
+        <TabsContent value="project-requests" className="mt-6">
+          <ProjectRequestsTab />
+        </TabsContent>
+        <TabsContent value="sent" className="mt-6">
           <SentRequestsTab />
         </TabsContent>
       </Tabs>

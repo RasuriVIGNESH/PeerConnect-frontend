@@ -109,8 +109,8 @@ export default function SkillsManager() {
     // Load user skills from backend
     const loadUserSkills = async () => {
         try {
-            if (!currentUser || !currentUser.id) {
-                console.error('No current user or user ID');
+            if (!currentUser) {
+                console.error('No current user');
                 return;
             }
 
@@ -132,7 +132,7 @@ export default function SkillsManager() {
     // Add skill to user profile
     const addSkill = async (skillName, skillCategory, level = 'BEGINNER') => {
         try {
-            if (!currentUser || !currentUser.id) {
+            if (!currentUser) {
                 throw new Error('User not authenticated');
             }
 
@@ -155,7 +155,7 @@ export default function SkillsManager() {
 
             // Reload user skills to get the updated list
             await loadUserSkills();
-            
+
             setMessage('Skill added successfully!');
             clearMessages();
 
@@ -176,10 +176,10 @@ export default function SkillsManager() {
             };
 
             await skillsService.updateUserSkill(userSkillId, skillData);
-            
+
             // Reload user skills to reflect changes
             await loadUserSkills();
-            
+
             setMessage('Skill level updated!');
             clearMessages();
 
@@ -194,12 +194,12 @@ export default function SkillsManager() {
     const removeSkill = async (userSkillId) => {
         try {
             console.log('Removing skill:', userSkillId);
-            
+
             await skillsService.deleteUserSkill(userSkillId);
-            
+
             // Reload user skills to reflect changes
             await loadUserSkills();
-            
+
             setMessage('Skill removed successfully!');
             clearMessages();
 
@@ -223,7 +223,7 @@ export default function SkillsManager() {
         }
 
         await addSkill(newSkillName, newSkillCategory, 'BEGINNER');
-        
+
         // Reset form
         setNewSkillName('');
         setNewSkillCategory('');
@@ -242,7 +242,7 @@ export default function SkillsManager() {
     const filteredPredefinedSkills = predefinedSkills.filter(skill => {
         const matchesSearch = skill.name.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesCategory = selectedCategory === 'all' || skill.category === selectedCategory;
-        const notAlreadyAdded = !userSkills.some(userSkill => 
+        const notAlreadyAdded = !userSkills.some(userSkill =>
             userSkill.skill && userSkill.skill.name.toLowerCase() === skill.name.toLowerCase()
         );
         return matchesSearch && matchesCategory && notAlreadyAdded;
@@ -302,17 +302,17 @@ export default function SkillsManager() {
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {userSkills.map((userSkill) => {
-                                const levelInfo = proficiencyLevels.find(level => 
+                                const levelInfo = proficiencyLevels.find(level =>
                                     level.value === userSkill.level
                                 );
-                                
+
                                 return (
                                     <Card key={userSkill.id} className="relative">
                                         <CardContent className="p-4">
                                             <div className="flex items-start justify-between">
                                                 <div className="flex items-center gap-2 mb-2">
-                                                    {categoryIcons[userSkill.skill?.category] || 
-                                                     categoryIcons['Other']}
+                                                    {categoryIcons[userSkill.skill?.category] ||
+                                                        categoryIcons['Other']}
                                                     <h4 className="font-medium">
                                                         {userSkill.skill?.name || userSkill.skillName}
                                                     </h4>
@@ -326,16 +326,16 @@ export default function SkillsManager() {
                                                     <X className="h-3 w-3" />
                                                 </Button>
                                             </div>
-                                            
+
                                             <p className="text-sm text-muted-foreground mb-3">
                                                 {userSkill.skill?.category || 'Other'}
                                             </p>
-                                            
+
                                             <div className="space-y-2">
                                                 <Label className="text-xs">Proficiency Level</Label>
                                                 <Select
                                                     value={userSkill.level}
-                                                    onValueChange={(newLevel) => 
+                                                    onValueChange={(newLevel) =>
                                                         updateSkillLevel(userSkill.id, newLevel)
                                                     }
                                                 >
@@ -399,7 +399,7 @@ export default function SkillsManager() {
                                 ))}
                             </SelectContent>
                         </Select>
-                        
+
                         {/* Add Custom Skill Dialog */}
                         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                             <DialogTrigger asChild>
@@ -458,7 +458,7 @@ export default function SkillsManager() {
                         <div className="text-center py-8">
                             <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                             <p className="text-muted-foreground">
-                                {searchTerm || selectedCategory !== 'all' 
+                                {searchTerm || selectedCategory !== 'all'
                                     ? 'No skills found matching your criteria.'
                                     : 'No predefined skills available.'
                                 }
