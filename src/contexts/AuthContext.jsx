@@ -1,3 +1,4 @@
+// src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService, userService } from '../services';
 
@@ -13,30 +14,28 @@ export function AuthProvider({ children }) {
     const [loading, setLoading] = useState(true);
 
     const isCollegeEmail = (email) => {
-        return email.endsWith('.edu.in');
+        return typeof email === 'string' && email.endsWith('.edu.in');
     };
 
     useEffect(() => {
         const initAuth = async () => {
             try {
                 if (authService.isAuthenticated()) {
-                    // V-- THIS IS THE FIX --V
-                    // The service returns a full response object, so we need to get the user data from it.
+                    // Defensive: authService.getCurrentUser() may return wrapped response
                     const response = await authService.getCurrentUser();
-                    const userData = response.data || response; // Defensively access the .data property
+                    const userData = response?.data || response;
 
                     console.log('Initialized user data:', userData);
 
-                    // Process profile photo from user data
-                    if (userData.profilePhoto) {
+                    // Process profile photo from user data (if present)
+                    if (userData?.profilePhoto) {
                         const photoData = userData.profilePhoto;
-                        // Check if it's already a data URI or needs prefix
-                        const photoUrl = photoData.startsWith('data:image')
+                        const photoUrl = typeof photoData === 'string' && photoData.startsWith('data:image')
                             ? photoData
                             : `data:image/png;base64,${photoData}`;
 
                         userData.profileImage = photoUrl;
-                        userData.profilePictureUrl = photoUrl; // For compatibility
+                        userData.profilePictureUrl = photoUrl;
                     }
 
                     setCurrentUser(userData);
@@ -44,7 +43,13 @@ export function AuthProvider({ children }) {
                 }
             } catch (error) {
                 console.error('Auth initialization error:', error);
-                authService.logout(); // Clear bad tokens
+                try {
+                    await authService.logout();
+                } catch (e) {
+                    // ignore
+                }
+                setCurrentUser(null);
+                setUserProfile(null);
             } finally {
                 setLoading(false);
             }
@@ -52,9 +57,9 @@ export function AuthProvider({ children }) {
         initAuth();
     }, []);
 
+    // Sign up (email/password)
     async function signup(email, password, userData) {
         try {
-            console.log('Signup with userData:', userData);
             const response = await authService.register({
                 email,
                 password,
@@ -65,14 +70,11 @@ export function AuthProvider({ children }) {
                 collegeId: userData.collegeId,
                 isCollegeVerified: isCollegeEmail(email)
             });
-            // Assuming register response might also be wrapped
-            const user = response.data?.user || response.user || response.data || response;
-            console.log('Signup successful, user data:', user);
 
-            // Process profile photo if present (unlikely for new signup but good practice)
-            if (user.profilePhoto) {
+            const user = response?.data?.user || response?.user || response?.data || response;
+            if (user?.profilePhoto) {
                 const photoData = user.profilePhoto;
-                const photoUrl = photoData.startsWith('data:image')
+                const photoUrl = typeof photoData === 'string' && photoData.startsWith('data:image')
                     ? photoData
                     : `data:image/png;base64,${photoData}`;
                 user.profileImage = photoUrl;
@@ -88,17 +90,38 @@ export function AuthProvider({ children }) {
         }
     }
 
+    // Redirect to backend to start GitHub OAuth flow
+    async function loginWithGitHub() {
+        try {
+            return await authService.loginWithGitHub(); // this will redirect the browser
+        } catch (error) {
+            console.error('loginWithGitHub error:', error);
+            throw error;
+        }
+    }
+
+    // Keep LinkedIn wrapper for compatibility (if used elsewhere)
+    async function loginWithLinkedIn() {
+        try {
+            return await authService.loginWithLinkedIn();
+        } catch (error) {
+            console.error('loginWithLinkedIn error:', error);
+            throw error;
+        }
+    }
+
+    // Email/password login
     async function login(email, password) {
         try {
             const response = await authService.login(email, password);
-            // Login response has a specific structure { token, user }
-            const user = response.user;
-            console.log('Login response user:', user);
+            // many APIs return { data: { user, token } } or { user, token }, handle both
+            const payload = response?.data || response;
+            const user = payload?.user || payload?.data?.user || payload;
 
-            // Process profile photo
-            if (user.profilePhoto) {
+            // If authService stores token, make sure AuthProvider knows current user
+            if (user?.profilePhoto) {
                 const photoData = user.profilePhoto;
-                const photoUrl = photoData.startsWith('data:image')
+                const photoUrl = typeof photoData === 'string' && photoData.startsWith('data:image')
                     ? photoData
                     : `data:image/png;base64,${photoData}`;
                 user.profileImage = photoUrl;
@@ -109,14 +132,7 @@ export function AuthProvider({ children }) {
             setUserProfile(user);
             return user;
         } catch (error) {
-            throw error;
-        }
-    }
-
-    async function loginWithLinkedIn() {
-        try {
-            await authService.loginWithLinkedIn();
-        } catch (error) {
+            console.error('Login error in AuthProvider:', error);
             throw error;
         }
     }
@@ -124,10 +140,11 @@ export function AuthProvider({ children }) {
     async function logout() {
         try {
             await authService.logout();
-            setCurrentUser(null);
-            setUserProfile(null);
         } catch (error) {
             console.error('Logout error:', error);
+        } finally {
+            setCurrentUser(null);
+            setUserProfile(null);
         }
     }
 
@@ -139,18 +156,14 @@ export function AuthProvider({ children }) {
         }
     }
 
-    // This function seems redundant if the main useEffect already fetches the user,
-    // but we'll keep it for fetching other users' profiles.
     async function fetchUserProfile(userId) {
         try {
             const response = await userService.getUserProfile(userId);
-            const userData = response.data || response;
-            // Only update the main userProfile if we're fetching the current user
+            const userData = response?.data || response;
             if (currentUser?.id === userId) {
-                // Process profile photo
-                if (userData.profilePhoto) {
+                if (userData?.profilePhoto) {
                     const photoData = userData.profilePhoto;
-                    const photoUrl = photoData.startsWith('data:image')
+                    const photoUrl = typeof photoData === 'string' && photoData.startsWith('data:image')
                         ? photoData
                         : `data:image/png;base64,${photoData}`;
                     userData.profileImage = photoUrl;
@@ -172,12 +185,11 @@ export function AuthProvider({ children }) {
             }
 
             const response = await userService.updateUserProfile(profileUpdates);
-            const updatedProfile = response.data || response;
+            const updatedProfile = response?.data || response;
 
             setUserProfile(updatedProfile);
             setCurrentUser(prev => ({ ...prev, ...updatedProfile }));
             return updatedProfile;
-
         } catch (error) {
             console.error('Error updating user profile:', error);
             throw error;
@@ -187,16 +199,19 @@ export function AuthProvider({ children }) {
     const value = {
         currentUser,
         userProfile,
-        isAuthenticated: !!currentUser, // Add a boolean flag for convenience
+        isAuthenticated: !!currentUser,
         signup,
         login,
+        loginWithGitHub,
         loginWithLinkedIn,
         logout,
         resetPassword,
         fetchUserProfile,
         updateUserProfile,
         isCollegeEmail,
-        loading
+        loading,
+        setCurrentUser,
+        setUserProfile
     };
 
     return (

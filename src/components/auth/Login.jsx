@@ -1,3 +1,4 @@
+// src/pages/auth/Login.jsx
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -6,7 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Eye, EyeOff, Mail, Lock, Linkedin } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { Github } from 'lucide-react';
+import apiService from '../../services/api'; // keep if you use it for direct calls
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -14,51 +17,40 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, loginWithLinkedIn } = useAuth();
+
+  const { login, loginWithGitHub } = useAuth(); // get loginWithGitHub from context
   const navigate = useNavigate();
 
+  // Single handleSubmit (email/password)
   async function handleSubmit(e) {
     e.preventDefault();
-
     try {
       setError('');
       setLoading(true);
-      await login(email, password);
+      const user = await login(email, password);
+      // login() will set current user in context. navigate to dashboard.
       navigate('/dashboard');
-    } catch (error) {
-      setError('Failed to log in. Please check your credentials.');
-      console.error('Login error:', error);
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(err?.message || 'Failed to log in. Please check your credentials.');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
-  async function handleLinkedInLogin() {
+  // GitHub OAuth button click
+  async function handleGitHubLogin() {
+    setError('');
     try {
-      setError('');
       setLoading(true);
-      await loginWithLinkedIn();
-    } catch (error) {
-      setError('LinkedIn login failed. Please try again.');
-      console.error('LinkedIn login error:', error);
-    }
-    setLoading(false);
-  } // In Login.jsx handleSubmit function, add:
-  async function handleSubmit(e) {
-      e.preventDefault();
-      try {
-          setError('');
-          setLoading(true);
-          console.log('Attempting login...');
-          const response = await login(email, password);
-          console.log('Login response:', response);
-          console.log('Token stored:', localStorage.getItem('token'));
-          navigate('/dashboard');
-      } catch (error) {
-          console.error('Login error:', error);
-          setError('Failed to log in. Please check your credentials.');
-      }
+      await loginWithGitHub(); // this will redirect the browser to backend -> GitHub
+      // since a redirect occurs, we won't get further here
+    } catch (err) {
+      console.error('GitHub login error:', err);
+      setError('GitHub login failed. Please try again.');
+    } finally {
       setLoading(false);
+    }
   }
 
   return (
@@ -70,7 +62,7 @@ export default function Login() {
             Sign in to your PeerConnect account
           </p>
         </div>
-        
+
         <Card>
           <CardHeader>
             <CardTitle>Sign In</CardTitle>
@@ -84,7 +76,7 @@ export default function Login() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            
+
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -101,7 +93,7 @@ export default function Login() {
                   />
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
@@ -124,7 +116,7 @@ export default function Login() {
                   </button>
                 </div>
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <Link
                   to="/forgot-password"
@@ -133,7 +125,7 @@ export default function Login() {
                   Forgot your password?
                 </Link>
               </div>
-              
+
               <Button
                 type="submit"
                 className="w-full"
@@ -142,7 +134,7 @@ export default function Login() {
                 {loading ? 'Signing in...' : 'Sign In'}
               </Button>
             </form>
-            
+
             {/* Divider */}
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
@@ -152,19 +144,19 @@ export default function Login() {
                 <span className="px-2 bg-gray-50 text-gray-500">Or continue with</span>
               </div>
             </div>
-            
-            {/* LinkedIn Login Button */}
+
+            {/* GitHub Login Button */}
             <Button
               type="button"
               variant="outline"
               className="w-full"
-              onClick={handleLinkedInLogin}
+              onClick={handleGitHubLogin}
               disabled={loading}
             >
-              <Linkedin className="h-4 w-4 mr-2 text-blue-600" />
-              {loading ? 'Connecting...' : 'Sign in with LinkedIn'}
+              <Github className="h-4 w-4 mr-2" />
+              {loading ? 'Connecting...' : 'Sign in with GitHub'}
             </Button>
-            
+
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-600">
                 Don't have an account?{' '}
@@ -181,7 +173,4 @@ export default function Login() {
       </div>
     </div>
   );
- 
-
 }
-

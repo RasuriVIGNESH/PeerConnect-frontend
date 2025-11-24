@@ -1,3 +1,4 @@
+// src/pages/oauth/OAuth2RedirectHandler.jsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -16,7 +17,6 @@ export default function OAuth2RedirectHandler() {
   useEffect(() => {
     const handleRedirect = async () => {
       try {
-        // Get token from URL parameter
         const token = searchParams.get('token');
         const error = searchParams.get('error');
 
@@ -34,48 +34,43 @@ export default function OAuth2RedirectHandler() {
           return;
         }
 
-        // Store token in localStorage
+        // Store token locally and in apiService
         localStorage.setItem('token', token);
-        
-        // Set token in API service
         apiService.setToken(token);
 
-        // Fetch user profile
-        const response = await fetch(`http://localhost:8080/api/auth/me`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        // Fetch current user from backend (uses apiService so token header is included)
+        const resp = await apiService.get('/auth/me');
+        const payload = resp?.data || resp;
+        const user = payload?.data || payload; // handle wrapped/unwrapped
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch user profile');
+        if (!user) {
+          throw new Error('Failed to retrieve user profile after authentication');
         }
 
-        const userData = await response.json();
-        
-        // Handle wrapped response
-        const user = userData.data || userData;
-        
+        // Normalize profile photo if present (same logic as AuthContext)
+        if (user.profilePhoto) {
+          const photoData = user.profilePhoto;
+          const photoUrl = photoData.startsWith('data:image')
+            ? photoData
+            : `data:image/png;base64,${photoData}`;
+          user.profileImage = photoUrl;
+          user.profilePictureUrl = photoUrl;
+        }
+
         // Update auth context
         setCurrentUser(user);
         setUserProfile(user);
 
         setStatus('success');
-        setMessage('Successfully authenticated with LinkedIn!');
+        setMessage('Successfully authenticated with GitHub!');
 
-        // Redirect to dashboard after 1.5 seconds
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 1500);
-
-      } catch (error) {
-        console.error('OAuth2 redirect error:', error);
+        setTimeout(() => navigate('/dashboard'), 1200);
+      } catch (err) {
+        console.error('OAuth2 redirect error:', err);
         setStatus('error');
-        setMessage(error.message || 'An error occurred during authentication');
-        
-        // Clear any stored token
+        setMessage(err?.message || 'An error occurred during authentication');
         localStorage.removeItem('token');
-        
+        apiService.setToken(null);
         setTimeout(() => navigate('/login'), 3000);
       }
     };
@@ -87,9 +82,9 @@ export default function OAuth2RedirectHandler() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>LinkedIn Authentication</CardTitle>
+          <CardTitle>GitHub Authentication</CardTitle>
           <CardDescription>
-            {status === 'loading' && 'Completing your authentication...'}
+            {status === 'loading' && 'Completing your GitHub sign-in...'}
             {status === 'success' && 'Authentication successful!'}
             {status === 'error' && 'Authentication failed'}
           </CardDescription>
@@ -101,7 +96,7 @@ export default function OAuth2RedirectHandler() {
               <p className="text-sm text-gray-600">{message}</p>
             </div>
           )}
-          
+
           {status === 'success' && (
             <Alert className="bg-green-50 border-green-200">
               <CheckCircle className="h-5 w-5 text-green-600" />
@@ -112,7 +107,7 @@ export default function OAuth2RedirectHandler() {
               </AlertDescription>
             </Alert>
           )}
-          
+
           {status === 'error' && (
             <Alert className="bg-red-50 border-red-200">
               <XCircle className="h-5 w-5 text-red-600" />

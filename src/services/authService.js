@@ -9,7 +9,7 @@ class AuthService {
             const response = await apiService.post('/auth/register', userData, {
                 includeAuth: false
             });
-            
+
             // Extract from the wrapped response structure
             if (response.data && response.data.accessToken) {
                 apiService.setToken(response.data.accessToken);
@@ -20,7 +20,7 @@ class AuthService {
                     ...response.data
                 };
             }
-            
+
             return response;
         } catch (error) {
             throw new Error(error.message || 'Registration failed');
@@ -36,7 +36,7 @@ class AuthService {
             }, {
                 includeAuth: false
             });
-            
+
             // Extract from the wrapped response structure  
             if (response.data && response.data.accessToken) {
                 apiService.setToken(response.data.accessToken);
@@ -47,26 +47,35 @@ class AuthService {
                     ...response.data
                 };
             }
-            
+
             return response;
         } catch (error) {
             throw new Error(error.message || 'Login failed');
         }
     }
 
-// LinkedIn OAuth login
-async loginWithLinkedIn() {
-    try {
-      // Redirect directly to Spring Boot's OAuth2 authorization endpoint
-      const linkedInAuthUrl = `http://localhost:8080/oauth2/authorize/linkedin`;
-      window.location.href = linkedInAuthUrl;
-    } catch (error) {
-      throw new Error('LinkedIn authentication failed');
+    // LinkedIn OAuth login
+    async loginWithLinkedIn() {
+        try {
+            // Redirect directly to Spring Boot's OAuth2 authorization endpoint
+            const linkedInAuthUrl = `http://localhost:8080/oauth2/authorize/linkedin`;
+            window.location.href = linkedInAuthUrl;
+        } catch (error) {
+            throw new Error('LinkedIn authentication failed');
+        }
     }
-  }
-  
-  
-  
+
+    async loginWithGitHub() {
+        try {
+            // Redirect to backend OAuth2 authorization endpoint (backend initiates the provider flow)
+            const githubAuthUrl = `http://localhost:8080/oauth2/authorization/github`;
+            window.location.href = githubAuthUrl;
+        } catch (error) {
+            throw new Error('GitHub authentication failed');
+        }
+    }
+
+
 
     // Logout user
     async logout() {

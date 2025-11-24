@@ -1,18 +1,18 @@
+// src/pages/auth/Register.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Github } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, EyeOff, Mail, Lock, User, GraduationCap, BookOpen, Linkedin, Building, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, GraduationCap, BookOpen, Building, ArrowRight, ArrowLeft } from 'lucide-react';
 import { dataService } from '../../services/dataService.js';
 
-// Multi-step Registration component
 export default function Register() {
-  // form data
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -24,19 +24,17 @@ export default function Register() {
     collegeId: null
   });
 
-  // UI state
-  const [step, setStep] = useState(1); // 1..3
+  const [step, setStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  // static data
   const [staticData, setStaticData] = useState({ branches: [], graduationYears: [], colleges: [] });
   const [isLoadingStaticData, setIsLoadingStaticData] = useState(false);
 
-  const { signup, loginWithLinkedIn, isCollegeEmail } = useAuth();
+  const { signup, loginWithGitHub, isCollegeEmail } = useAuth(); // use GitHub method from context
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -58,7 +56,6 @@ export default function Register() {
     fetchStaticData();
   }, []);
 
-  // Helpers
   const isCollegeEmailValid = isCollegeEmail(formData.email);
 
   function handleInputChange(e) {
@@ -73,7 +70,6 @@ export default function Register() {
     setFieldErrors(prev => ({ ...prev, [name]: '' }));
   }
 
-  // Per-step validation. returns true if valid and sets fieldErrors.
   function validateStep(currentStep) {
     const errs = {};
     if (currentStep === 1) {
@@ -95,14 +91,9 @@ export default function Register() {
     return Object.keys(errs).length === 0;
   }
 
-  // navigation
   function handleNext() {
     setError('');
-    if (validateStep(step)) {
-      setStep(prev => Math.min(prev + 1, 3));
-    } else {
-      // simple shake by toggling a class could be added; keep it simple
-    }
+    if (validateStep(step)) setStep(prev => Math.min(prev + 1, 3));
   }
 
   function handleBack() {
@@ -110,13 +101,11 @@ export default function Register() {
     setStep(prev => Math.max(prev - 1, 1));
   }
 
-  // final submit
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     if (!validateStep(step)) return;
 
-    // final safety validate all steps
     if (!validateStep(1) || !validateStep(2) || !validateStep(3)) return;
 
     try {
@@ -124,7 +113,7 @@ export default function Register() {
       const userData = {
         firstName: formData.firstName,
         lastName: formData.lastName,
-        graduationYear: parseInt(formData.graduationYear),
+        graduationYear: parseInt(formData.graduationYear, 10),
         branch: formData.branch,
         collegeId: formData.collegeId
       };
@@ -132,26 +121,26 @@ export default function Register() {
       navigate('/dashboard');
     } catch (err) {
       console.error('Registration error:', err);
-      setError('Failed to create account: ' + (err.message || 'Please try again.'));
+      setError('Failed to create account: ' + (err?.message || 'Please try again.'));
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleLinkedInLogin() {
+  async function handleGitHubLogin() {
+    setError('');
     try {
-      setError('');
       setLoading(true);
-      await loginWithLinkedIn();
+      await loginWithGitHub(); // redirects
     } catch (err) {
-      console.error('LinkedIn error:', err);
-      setError('LinkedIn login failed. Please try again.');
+      console.error('GitHub login error:', err);
+      setError('GitHub login failed. Please try again.');
     } finally {
       setLoading(false);
     }
   }
 
-  // UI pieces for steps (keeps JSX tidy)
+  // Step indicator component (kept same as your original)
   function StepIndicator() {
     const steps = [
       { id: 1, label: 'Account' },
@@ -178,7 +167,6 @@ export default function Register() {
     );
   }
 
-  // Animated step container simple CSS transition (no new deps)
   const stepContainerClass = "transition-all duration-300 ease-in-out transform";
 
   return (
@@ -204,7 +192,7 @@ export default function Register() {
             <StepIndicator />
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* STEP 1 - Account */}
+              {/* STEP 1 */}
               <div className={`${step === 1 ? '' : 'hidden'} ${stepContainerClass}`}>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -238,7 +226,7 @@ export default function Register() {
                 </div>
               </div>
 
-              {/* STEP 2 - Academic */}
+              {/* STEP 2 */}
               <div className={`${step === 2 ? '' : 'hidden'} ${stepContainerClass}`}>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -293,7 +281,7 @@ export default function Register() {
                 </div>
               </div>
 
-              {/* STEP 3 - Security */}
+              {/* STEP 3 */}
               <div className={`${step === 3 ? '' : 'hidden'} ${stepContainerClass}`}>
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
@@ -321,7 +309,7 @@ export default function Register() {
                 </div>
               </div>
 
-              {/* Navigation buttons */}
+              {/* Navigation */}
               <div className="flex items-center justify-between gap-4 mt-4">
                 <div className="flex-1">
                   {step > 1 ? (
@@ -357,10 +345,9 @@ export default function Register() {
               </div>
             </div>
 
-            {/* LinkedIn Login Button */}
-            <Button type="button" variant="outline" className="w-full" onClick={handleLinkedInLogin} disabled={loading}>
-              <Linkedin className="h-4 w-4 mr-2 text-blue-600" />
-              {loading ? 'Connecting...' : 'Sign up with LinkedIn'}
+            <Button type="button" variant="outline" className="w-full" onClick={handleGitHubLogin} disabled={loading}>
+              <Github className="h-4 w-4 mr-2" />
+              {loading ? 'Connecting...' : 'Sign up with GitHub'}
             </Button>
 
             <div className="mt-6 text-center">

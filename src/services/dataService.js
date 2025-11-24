@@ -26,14 +26,14 @@ class DataService {
       throw new Error(error.message || 'Failed to get graduation years');
     }
   }
-  
+
   // Get colleges - matches the /api/colleges endpoint
   async getColleges() {
     try {
       console.log('DataService: Getting colleges...');
       const response = await apiService.get('/collages');
       console.log('DataService: Colleges response:', response);
-      
+
       // Handle different response formats
       if (response && Array.isArray(response)) {
         return { data: response };
@@ -74,7 +74,7 @@ class DataService {
   async getAllStaticData() {
     try {
       console.log('DataService: Getting all static data...');
-      
+
       const [branches, graduationYears, projectCategories] = await Promise.all([
         this.getBranches(),
         this.getGraduationYears(),
