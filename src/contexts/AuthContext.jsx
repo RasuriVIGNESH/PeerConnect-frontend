@@ -28,7 +28,11 @@ export function AuthProvider({ children }) {
                     console.log('Initialized user data:', userData);
 
                     // Process profile photo from user data (if present)
-                    if (userData?.profilePhoto) {
+                    // Process profile photo from user data
+                    // Priority: profilePictureUrl (URL) > profilePhoto (Binary)
+                    if (userData?.profilePictureUrl) {
+                        userData.profileImage = userData.profilePictureUrl;
+                    } else if (userData?.profilePhoto) {
                         const photoData = userData.profilePhoto;
                         const photoUrl = typeof photoData === 'string' && photoData.startsWith('data:image')
                             ? photoData
@@ -72,7 +76,9 @@ export function AuthProvider({ children }) {
             });
 
             const user = response?.data?.user || response?.user || response?.data || response;
-            if (user?.profilePhoto) {
+            if (user?.profilePictureUrl) {
+                user.profileImage = user.profilePictureUrl;
+            } else if (user?.profilePhoto) {
                 const photoData = user.profilePhoto;
                 const photoUrl = typeof photoData === 'string' && photoData.startsWith('data:image')
                     ? photoData
@@ -119,7 +125,9 @@ export function AuthProvider({ children }) {
             const user = payload?.user || payload?.data?.user || payload;
 
             // If authService stores token, make sure AuthProvider knows current user
-            if (user?.profilePhoto) {
+            if (user?.profilePictureUrl) {
+                user.profileImage = user.profilePictureUrl;
+            } else if (user?.profilePhoto) {
                 const photoData = user.profilePhoto;
                 const photoUrl = typeof photoData === 'string' && photoData.startsWith('data:image')
                     ? photoData
@@ -161,7 +169,9 @@ export function AuthProvider({ children }) {
             const response = await userService.getUserProfile(userId);
             const userData = response?.data || response;
             if (currentUser?.id === userId) {
-                if (userData?.profilePhoto) {
+                if (userData?.profilePictureUrl) {
+                    userData.profileImage = userData.profilePictureUrl;
+                } else if (userData?.profilePhoto) {
                     const photoData = userData.profilePhoto;
                     const photoUrl = typeof photoData === 'string' && photoData.startsWith('data:image')
                         ? photoData

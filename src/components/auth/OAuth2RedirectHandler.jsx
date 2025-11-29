@@ -48,7 +48,11 @@ export default function OAuth2RedirectHandler() {
         }
 
         // Normalize profile photo if present (same logic as AuthContext)
-        if (user.profilePhoto) {
+        // Normalize profile photo if present (same logic as AuthContext)
+        // Priority: profilePictureUrl (URL) > profilePhoto (Binary)
+        if (user.profilePictureUrl) {
+          user.profileImage = user.profilePictureUrl;
+        } else if (user.profilePhoto) {
           const photoData = user.profilePhoto;
           const photoUrl = photoData.startsWith('data:image')
             ? photoData

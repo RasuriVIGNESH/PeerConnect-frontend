@@ -19,8 +19,24 @@ import {
     BarChart3,
     Smartphone,
     Settings,
-    Trash2
+    Trash2,
+    Check,
+    ChevronsUpDown
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from '@/components/ui/command';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
 import skillsService from '../../services/skillsService';
 
 export default function SkillsManager() {
@@ -33,6 +49,7 @@ export default function SkillsManager() {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [newSkillName, setNewSkillName] = useState('');
     const [newSkillCategory, setNewSkillCategory] = useState('');
+    const [open, setOpen] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
 
@@ -418,12 +435,69 @@ export default function SkillsManager() {
                                 <div className="space-y-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="skillName">Skill Name</Label>
-                                        <Input
-                                            id="skillName"
-                                            value={newSkillName}
-                                            onChange={(e) => setNewSkillName(e.target.value)}
-                                            placeholder="e.g., React Native"
-                                        />
+                                        <Popover open={open} onOpenChange={setOpen}>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    aria-expanded={open}
+                                                    className="w-full justify-between"
+                                                >
+                                                    {newSkillName || "Select or type skill..."}
+                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[400px] p-0" align="start">
+                                                <Command>
+                                                    <CommandInput
+                                                        placeholder="Search or type new skill..."
+                                                        value={newSkillName}
+                                                        onValueChange={setNewSkillName}
+                                                    />
+                                                    <CommandList>
+                                                        <CommandEmpty>
+                                                            <div className="p-2">
+                                                                <p className="text-sm text-muted-foreground mb-2">No predefined skill found.</p>
+                                                                <Button
+                                                                    variant="secondary"
+                                                                    size="sm"
+                                                                    className="w-full h-auto py-1"
+                                                                    onClick={() => {
+                                                                        setOpen(false);
+                                                                    }}
+                                                                >
+                                                                    Use "{newSkillName}"
+                                                                </Button>
+                                                            </div>
+                                                        </CommandEmpty>
+                                                        <CommandGroup heading="Suggestions">
+                                                            {predefinedSkills.map((skill) => (
+                                                                <CommandItem
+                                                                    key={skill.id}
+                                                                    value={skill.name}
+                                                                    onSelect={(currentValue) => {
+                                                                        // currentValue is usually lowercased by cmdk, so we use skill.name
+                                                                        setNewSkillName(skill.name);
+                                                                        if (skill.category) {
+                                                                            setNewSkillCategory(skill.category);
+                                                                        }
+                                                                        setOpen(false);
+                                                                    }}
+                                                                >
+                                                                    <Check
+                                                                        className={cn(
+                                                                            "mr-2 h-4 w-4",
+                                                                            newSkillName === skill.name ? "opacity-100" : "opacity-0"
+                                                                        )}
+                                                                    />
+                                                                    {skill.name}
+                                                                </CommandItem>
+                                                            ))}
+                                                        </CommandGroup>
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="skillCategory">Category</Label>

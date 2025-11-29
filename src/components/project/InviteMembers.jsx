@@ -39,23 +39,36 @@ export default function InviteMembers() {
         const allStudents = usersResponse?.data?.content || usersResponse?.data || [];
         const currentMembers = membersResponse?.data || [];
         const memberIds = new Set(currentMembers.map(member => member.user.id));
-        
+
         // Also add the Lead to the set of users not to show
         const projectDetails = await projectService.getProject(projectId);
         if (projectDetails?.Lead?.id) {
-            memberIds.add(projectDetails.Lead.id);
+          memberIds.add(projectDetails.Lead.id);
+        } else if (projectDetails?.lead?.id) {
+          memberIds.add(projectDetails.lead.id);
         }
 
         // Filter out the current user, the project Lead, and any existing members
         const availableStudents = allStudents.filter(student => !memberIds.has(student.id));
 
-        const processedStudents = availableStudents.map(student => ({
-          ...student,
-          displayName: student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim(),
-          profileImage: student.profileImage || student.profilePicture || student.avatar || null,
-          studentSkills: student.skills?.map(s => s.name || s) || [],
-          collegeName: student.collage?.name
-        }));
+        const processedStudents = availableStudents.map(student => {
+          let imageUrl = null;
+          if (student.profilePictureUrl) {
+            imageUrl = student.profilePictureUrl;
+          } else if (student.profilePhoto) {
+            imageUrl = student.profilePhoto.startsWith('data:image') || student.profilePhoto.startsWith('http')
+              ? student.profilePhoto
+              : `data:image/png;base64,${student.profilePhoto}`;
+          }
+
+          return {
+            ...student,
+            displayName: student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim(),
+            profileImage: imageUrl,
+            studentSkills: student.skills?.map(s => s.name || s) || [],
+            collegeName: student.collage?.name || student.college?.name
+          };
+        });
 
         setStudents(processedStudents);
         setFilteredStudents(processedStudents);
@@ -92,9 +105,9 @@ export default function InviteMembers() {
         role: 'MEMBER', // 👈 Add this line
         message: `You are invited to join the project!` // You can also include a message
       };
-      
+
       await projectService.sendInvitation(projectId, invitationData);
-      
+
       // Add studentId to the invited list to update the UI
       setInvitedUserIds(prev => [...prev, student.id]);
       alert(`Invitation sent to ${student.displayName}!`);
@@ -117,10 +130,10 @@ export default function InviteMembers() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <Link to={`/projects/${projectId}`} className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Project
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Project
       </Link>
-      
+
       <div>
         <h1 className="text-3xl font-bold flex items-center gap-2">
           <Users className="h-8 w-8 text-blue-600" />
@@ -142,7 +155,7 @@ export default function InviteMembers() {
           className="pl-10"
         />
       </div>
-      
+
       {filteredStudents.length > 0 ? (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredStudents.map(student => (
@@ -180,8 +193,8 @@ export default function InviteMembers() {
                 )}
               </CardContent>
               <div className="p-4 pt-0">
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   className="w-full"
                   onClick={() => handleInvite(student)}
                   disabled={invitedUserIds.includes(student.id)}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { userService } from '../../services';
 import { Button } from '@/components/ui/button';
@@ -57,6 +57,7 @@ export default function ProfilePage() {
     const [photoFile, setPhotoFile] = useState(null);
     const [photoLoading, setPhotoLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('details'); // State for active tab
+    const fileInputRef = useRef(null);
 
     const [formData, setFormData] = useState({
         firstName: '', lastName: '', bio: '', profilePictureUrl: '',
@@ -94,21 +95,52 @@ export default function ProfilePage() {
 
     // --- Photo Handlers (Simplified for brevity, functionality preserved) ---
     async function handleUploadPhoto() {
-        // Original logic for upload...
-        // For now, just a placeholder
-        setPhotoLoading(true);
-        setError('');
-        setMessage('Photo upload functionality preserved.');
-        setTimeout(() => setPhotoLoading(false), 1000);
+        if (!photoFile) return;
+
+        try {
+            setPhotoLoading(true);
+            setError('');
+            setMessage('');
+
+            await userService.uploadProfilePicture(photoFile);
+
+            // Refresh profile to get the new photo
+            await fetchUserProfile(currentUser.id);
+
+            setMessage('Profile photo uploaded successfully!');
+            setPhotoFile(null);
+            // Reset file input
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+
+        } catch (error) {
+            console.error('Photo upload error:', error);
+            setError(error.message || 'Failed to upload photo');
+        } finally {
+            setPhotoLoading(false);
+        }
     }
 
     async function handleDeletePhoto() {
-        // Original logic for delete...
-        // For now, just a placeholder
-        setPhotoLoading(true);
-        setError('');
-        setMessage('Photo delete functionality preserved.');
-        setTimeout(() => setPhotoLoading(false), 1000);
+        try {
+            setPhotoLoading(true);
+            setError('');
+            setMessage('');
+
+            await userService.deleteProfilePhoto();
+
+            // Refresh profile
+            await fetchUserProfile(currentUser.id);
+
+            setMessage('Profile photo removed successfully!');
+
+        } catch (error) {
+            console.error('Photo delete error:', error);
+            setError(error.message || 'Failed to delete photo');
+        } finally {
+            setPhotoLoading(false);
+        }
     }
 
     // --- Save/Cancel Handlers (Functionality preserved) ---
@@ -312,7 +344,13 @@ export default function ProfilePage() {
                             <TabsContent value="photo" className="mt-4 space-y-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="profilePhoto">Upload New Profile Photo</Label>
-                                    <Input id="profilePhoto" type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} />
+                                    <Input
+                                        ref={fileInputRef}
+                                        id="profilePhoto"
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+                                    />
                                     <div className="flex gap-2 pt-2">
                                         <Button size="sm" onClick={handleUploadPhoto} disabled={photoLoading || !photoFile} className="bg-blue-700 hover:bg-blue-800 transition-colors duration-300">
                                             {photoLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Camera className="h-4 w-4 mr-2" />}

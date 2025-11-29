@@ -1,13 +1,13 @@
 // src/pages/auth/Login.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { toast } from "sonner";
 import { Github } from 'lucide-react';
 import apiService from '../../services/api'; // keep if you use it for direct calls
 
@@ -15,24 +15,26 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const { login, loginWithGitHub } = useAuth(); // get loginWithGitHub from context
   const navigate = useNavigate();
 
+
+
   // Single handleSubmit (email/password)
   async function handleSubmit(e) {
     e.preventDefault();
     try {
-      setError('');
       setLoading(true);
       const user = await login(email, password);
       // login() will set current user in context. navigate to dashboard.
       navigate('/dashboard');
     } catch (err) {
       console.error('Login error:', err);
-      setError(err?.message || 'Failed to log in. Please check your credentials.');
+      toast.error('Invalid credentials', {
+        duration: 2000,
+      });
     } finally {
       setLoading(false);
     }
@@ -40,14 +42,15 @@ export default function Login() {
 
   // GitHub OAuth button click
   async function handleGitHubLogin() {
-    setError('');
     try {
       setLoading(true);
       await loginWithGitHub(); // this will redirect the browser to backend -> GitHub
       // since a redirect occurs, we won't get further here
     } catch (err) {
       console.error('GitHub login error:', err);
-      setError('GitHub login failed. Please try again.');
+      toast.error('GitHub login failed. Please try again.', {
+        duration: 2000,
+      });
     } finally {
       setLoading(false);
     }
@@ -71,12 +74,6 @@ export default function Login() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {error && (
-              <Alert className="mb-4" variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>

@@ -2,17 +2,25 @@ import apiService from './api.js';
 
 class SkillsService {
 
-    // Get predefined skills - matches SkillController endpoint
-    async getPredefinedSkills() {
+    // ===== NEW METHOD FOR STATIC DATA =====
+    // Get static predefined skills list - Matches /api/static-data/predefined-skills
+    async getStaticPredefinedSkills() {
         try {
-            console.log('SkillsService: Getting predefined skills...');
-            const response = await apiService.get('/skills/predefined');
-            console.log('SkillsService: Predefined skills response:', response);
+            // Note: Assuming apiService handles the base /api url or it's relative
+            // If apiService.get adds '/api', this becomes '/api/static-data...'
+            // Adjusting based on standard pattern
+            const response = await apiService.get('/static-data/predefined-skills');
             return response;
         } catch (error) {
-            console.error('SkillsService: Error getting predefined skills:', error);
-            throw new Error(error.message || 'Failed to get predefined skills');
+            console.error('SkillsService: Error getting static predefined skills:', error);
+            // Return empty array on failure so components don't crash
+            return [];
         }
+    }
+
+    // Alias for getStaticPredefinedSkills to maintain compatibility
+    async getPredefinedSkills() {
+        return this.getStaticPredefinedSkills();
     }
 
     // Get all skills with pagination - matches SkillController endpoint
@@ -181,10 +189,10 @@ class SkillsService {
             if (!userId) {
                 throw new Error('User ID is required');
             }
-            
+
             const response = await apiService.get(`/users/${userId}`);
             console.log('SkillsService: User profile response:', response);
-            
+
             // Extract skills from user profile response
             const userSkills = response?.data?.skills || response?.skills || [];
             return { data: userSkills, success: true };

@@ -50,18 +50,6 @@ class DataService {
     }
   }
 
-  // Get project categories - matches StaticDataController endpoint
-  async getProjectCategories() {
-    try {
-      console.log('DataService: Getting project categories...');
-      const response = await apiService.get('/static-data/project-categories');
-      console.log('DataService: Project categories response:', response);
-      return response;
-    } catch (error) {
-      console.error('DataService: Error getting project categories:', error);
-      throw new Error(error.message || 'Failed to get project categories');
-    }
-  }
 
   // REMOVED METHODS: The following methods don't have corresponding backend endpoints
   // If you need these functionalities, implement them in the backend first:

@@ -24,6 +24,7 @@ import MeetingRooms from './components/project/MeetingRooms';
 import MeetingRoomsPage from '../src/components/project/MeetingRoomsPage';
 import { projectService } from './services/projectService';
 import { Loader2 } from 'lucide-react';
+import { Toaster } from '@/components/ui/sonner';
 import './App.css';
 
 
@@ -33,121 +34,122 @@ function App() {
     <Router>
       <AuthProvider>
         <RequestProvider>
-        <div className="App">
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/auth/oauth2/redirect" element={<OAuth2RedirectHandler />} />
-            
-            {/* Protected Routes */}
-            <Route 
-              path="/dashboard" 
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/profile" 
-              element={
-                <ProtectedRoute>
-                  <ProfilePage />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/projects/create" 
-              element={
-                <ProtectedRoute>
-                  <CreateProject />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/projects/:projectId" 
-              element={
-                <ProtectedRoute>
-                  <ProjectPage />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/projects/:projectId/invite" 
-              element={
-                <ProtectedRoute>
-                  <InviteMembers />
-                </ProtectedRoute>
-              } 
+          <div className="App">
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/auth/oauth2/redirect" element={<OAuth2RedirectHandler />} />
+
+              {/* Protected Routes */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
               />
-            <Route path="/projects/:projectId/rooms" element={<MeetingRoomsPage />} />
-            <Route 
-              path="/discover/students" 
-              element={
-                <ProtectedRoute>
-                  <StudentDiscovery />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/discover/projects" 
-              element={
-                <ProtectedRoute>
-                  <ProjectDiscovery />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/discover/skills" 
-              element={
-                <ProtectedRoute>
-                  <SkillDiscovery />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-                path="/requests" 
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <ProfilePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/projects/create"
+                element={
+                  <ProtectedRoute>
+                    <CreateProject />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/projects/:projectId"
+                element={
+                  <ProtectedRoute>
+                    <ProjectPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/projects/:projectId/invite"
+                element={
+                  <ProtectedRoute>
+                    <InviteMembers />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/projects/:projectId/rooms" element={<MeetingRoomsPage />} />
+              <Route
+                path="/discover/students"
+                element={
+                  <ProtectedRoute>
+                    <StudentDiscovery />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/discover/projects"
+                element={
+                  <ProtectedRoute>
+                    <ProjectDiscovery />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/discover/skills"
+                element={
+                  <ProtectedRoute>
+                    <SkillDiscovery />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/requests"
                 element={
                   <ProtectedRoute>
                     <RequestsPage />
                   </ProtectedRoute>
-                } 
+                }
               />
-            
-            {/* New Routes for Dashboard functionality */}
-            <Route 
-                path="/projects/my-projects" 
+
+              {/* New Routes for Dashboard functionality */}
+              <Route
+                path="/projects/my-projects"
                 element={
                   <ProtectedRoute>
                     <MyProjects />
                   </ProtectedRoute>
-                } 
+                }
               />
 
-            <Route  
-              path="/connections" 
-              element={
-                <ProtectedRoute>
-                  <Connections />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/skills" 
-              element={
-                <ProtectedRoute>
-                  <Skills />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* Redirect any unknown routes to landing page */}
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
-        </div>
+              <Route
+                path="/connections"
+                element={
+                  <ProtectedRoute>
+                    <Connections />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/skills"
+                element={
+                  <ProtectedRoute>
+                    <Skills />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Redirect any unknown routes to landing page */}
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+            <Toaster richColors position="top-center" closeButton />
+          </div>
         </RequestProvider>
       </AuthProvider>
     </Router>

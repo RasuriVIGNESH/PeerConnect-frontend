@@ -33,6 +33,11 @@ export default function Skills() {
   const [predefinedSkills, setPredefinedSkills] = useState([]);
   const [skillCategories, setSkillCategories] = useState([]);
 
+  // New State for Static Predefined Skills (Autocomplete)
+  const [staticSkillList, setStaticSkillList] = useState([]);
+  const [filteredSuggestions, setFilteredSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
   // Loading and UI states
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -70,7 +75,8 @@ export default function Skills() {
       await Promise.all([
         loadUserSkills(),
         loadPredefinedSkills(),
-        loadSkillCategories()
+        loadSkillCategories(),
+        loadStaticSkillList() // Fetch new static list
       ]);
     } catch (error) {
       console.error('Error initializing skills:', error);
@@ -92,15 +98,37 @@ export default function Skills() {
     }
   };
 
-  // Load predefined skills for adding new ones
+  // Load predefined skills for adding new ones (existing method)
   const loadPredefinedSkills = async () => {
     try {
       const response = await skillsService.getPredefinedSkills();
-      const skills = response?.data || response || [];
+      const rawSkills = response?.data || response || [];
+
+      // Normalize to objects with name and id (if missing) to prevent crashes
+      const skills = rawSkills.map((s, index) => {
+        if (typeof s === 'string') {
+          return { id: `static-${index}-${s}`, name: s };
+        }
+        return s;
+      });
+
       setPredefinedSkills(skills);
     } catch (error) {
       console.error('Error loading predefined skills:', error);
-      // Don't throw - predefined skills are optional
+    }
+  };
+
+  // NEW: Load Static Skill List for Autocomplete
+  const loadStaticSkillList = async () => {
+    try {
+      const response = await skillsService.getStaticPredefinedSkills();
+      const skills = response?.data || response || [];
+      // Ensure we are working with an array of strings or objects. 
+      // If objects, we map to names, if strings we keep as is.
+      const formattedSkills = skills.map(s => (typeof s === 'string' ? s : s.name));
+      setStaticSkillList(formattedSkills);
+    } catch (error) {
+      console.error('Error loading static skill list:', error);
     }
   };
 
@@ -112,18 +140,33 @@ export default function Skills() {
       setSkillCategories(categories);
     } catch (error) {
       console.error('Error loading skill categories:', error);
-      // Fallback categories if API fails
       setSkillCategories([
-        'Programming',
-        'Design',
-        'Data Science',
-        'Mobile Development',
-        'DevOps',
-        'Testing',
-        'Project Management',
-        'Other'
+        'Programming', 'Design', 'Data Science', 'Mobile Development',
+        'DevOps', 'Testing', 'Project Management', 'Other'
       ]);
     }
+  };
+
+  // Handle input change for skill name with autocomplete
+  const handleSkillNameChange = (e) => {
+    const value = e.target.value;
+    setNewSkillName(value);
+
+    if (value.length > 0) {
+      const filtered = staticSkillList.filter(
+        (skill) => skill.toLowerCase().includes(value.toLowerCase())
+      );
+      setFilteredSuggestions(filtered.slice(0, 10)); // Limit to 10 suggestions
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
+  };
+
+  // Handle selection from autocomplete
+  const handleSuggestionClick = (skill) => {
+    setNewSkillName(skill);
+    setShowSuggestions(false);
   };
 
   // Add new skill
@@ -163,6 +206,7 @@ export default function Skills() {
       setNewSkillLevel('BEGINNER');
       setNewSkillExperience('');
       setShowAddSkill(false);
+      setShowSuggestions(false);
 
       setMessage('Skill added successfully!');
       clearMessages();
@@ -181,7 +225,7 @@ export default function Skills() {
     try {
       const skillData = {
         level: newLevel,
-        experience: '0' // You might want to keep existing experience
+        experience: '0'
       };
 
       await skillsService.updateUserSkill(userSkillId, skillData);
@@ -211,7 +255,7 @@ export default function Skills() {
     }
   };
 
-  // Add predefined skill
+  // Add predefined skill (from sidebar)
   const handleAddPredefinedSkill = async (predefinedSkill, level) => {
     try {
       const skillData = {
@@ -267,9 +311,14 @@ export default function Skills() {
 
   // Get available predefined skills (not already added by user)
   const availablePredefinedSkills = predefinedSkills.filter(predefinedSkill => {
-    return !userSkills.some(userSkill =>
-      (userSkill.skill?.name || userSkill.skillName)?.toLowerCase() === predefinedSkill.name.toLowerCase()
-    );
+    const predefinedName = typeof predefinedSkill === 'string' ? predefinedSkill : predefinedSkill?.name;
+
+    if (!predefinedName) return false;
+
+    return !userSkills.some(userSkill => {
+      const userSkillName = userSkill.skill?.name || userSkill.skillName;
+      return userSkillName && userSkillName.toLowerCase() === predefinedName.toLowerCase();
+    });
   });
 
   if (loading) {
@@ -345,7 +394,7 @@ export default function Skills() {
 
             {/* Add Skill Form */}
             {showAddSkill && (
-              <Card className="mb-6">
+              <Card className="mb-6 overflow-visible">
                 <CardHeader>
                   <CardTitle className="text-lg">Add New Skill</CardTitle>
                   <CardDescription>
@@ -354,16 +403,33 @@ export default function Skills() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
+                    <div className="space-y-2 relative">
                       <Label htmlFor="skillName">Skill Name *</Label>
                       <Input
                         id="skillName"
                         type="text"
                         placeholder="e.g., React, Python, UI Design"
                         value={newSkillName}
-                        onChange={(e) => setNewSkillName(e.target.value)}
+                        onChange={handleSkillNameChange}
+                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                        onFocus={() => { if (newSkillName) setShowSuggestions(true) }}
                         onKeyPress={(e) => e.key === 'Enter' && handleAddSkill()}
+                        autoComplete="off"
                       />
+                      {/* Suggestions Dropdown */}
+                      {showSuggestions && filteredSuggestions.length > 0 && (
+                        <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto">
+                          {filteredSuggestions.map((skill, index) => (
+                            <div
+                              key={index}
+                              className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                              onClick={() => handleSuggestionClick(skill)}
+                            >
+                              {skill}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -397,6 +463,28 @@ export default function Skills() {
                     />
                   </div>
 
+                  {/* Popular Skills Selection */}
+                  {staticSkillList.length > 0 && (
+                    <div className="pt-2">
+                      <Label className="text-xs text-gray-500 mb-2 block">Popular Skills (Click to select)</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {staticSkillList
+                          .filter(skill => !userSkills.some(us => (us.skill?.name || us.skillName)?.toLowerCase() === skill.toLowerCase()))
+                          .slice(0, 15)
+                          .map((skill, index) => (
+                            <Badge
+                              key={index}
+                              variant="outline"
+                              className="cursor-pointer hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors py-1 px-2 font-normal"
+                              onClick={() => setNewSkillName(skill)}
+                            >
+                              + {skill}
+                            </Badge>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex gap-3">
                     <Button
                       onClick={handleAddSkill}
@@ -412,6 +500,7 @@ export default function Skills() {
                         setNewSkillCategory('');
                         setNewSkillLevel('BEGINNER');
                         setNewSkillExperience('');
+                        setShowSuggestions(false);
                       }}
                     >
                       Cancel

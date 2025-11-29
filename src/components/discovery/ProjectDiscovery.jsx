@@ -11,11 +11,11 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Search, 
-  Users, 
-  UserPlus, 
-  Eye, 
+import {
+  Search,
+  Users,
+  UserPlus,
+  Eye,
   Calendar,
   Loader2,
   Target,
@@ -226,7 +226,7 @@ export default function ProjectDiscovery() {
           {filteredProjects.map((project) => (
             <Card key={project.id} className="group hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/20 flex flex-col">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/50 via-primary to-primary/50 opacity-0 group-hover:opacity-100 transition-opacity" />
-              
+
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <Badge className="bg-primary/10 text-primary border-primary/20">
@@ -268,7 +268,7 @@ export default function ProjectDiscovery() {
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Users className="h-4 w-4" />
                     <span className="font-medium">
-                      {project.currentTeamSize+1}/{project.maxTeamSize}
+                      {project.currentTeamSize + 1}/{project.maxTeamSize}
                     </span>
                   </div>
                   {project.lead && (
@@ -357,17 +357,7 @@ export default function ProjectDiscovery() {
                   </div>
                 )}
 
-                {selectedProject.requirements && (
-                  <div className="bg-muted/30 rounded-lg p-4 border">
-                    <div className="flex items-center gap-2 mb-2">
-                      <TrendingUp className="h-5 w-5 text-foreground" />
-                      <span className="font-semibold text-foreground">Requirements</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
-                      {selectedProject.requirements}
-                    </p>
-                  </div>
-                )}
+
 
                 {selectedProject.requiredSkills && selectedProject.requiredSkills.length > 0 && (
                   <div>
@@ -387,7 +377,7 @@ export default function ProjectDiscovery() {
                     <Users className="h-5 w-5 text-muted-foreground" />
                     <div>
                       <div className="text-xs text-muted-foreground">Team Size</div>
-                      <div className="font-semibold">{selectedProject.currentTeamSize+1}/{selectedProject.maxTeamSize}</div>
+                      <div className="font-semibold">{selectedProject.currentTeamSize + 1}/{selectedProject.maxTeamSize}</div>
                     </div>
                   </div>
                   {selectedProject.createdAt && (

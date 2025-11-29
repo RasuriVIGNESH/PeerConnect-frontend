@@ -78,7 +78,7 @@ export default function StudentDiscovery() {
       try {
         const skillsResponse = await skillsService.getPredefinedSkills();
         console.log('Skills response:', skillsResponse);
-        
+
         if (skillsResponse?.data) {
           setPredefinedSkills(skillsResponse.data);
           // Group skills by category
@@ -94,8 +94,8 @@ export default function StudentDiscovery() {
         try {
           const userSkillsResponse = await skillsService.getUserSkills();
           console.log('User skills response:', userSkillsResponse);
-          
-          const currentUserSkills = userSkillsResponse?.data?.map(userSkill => 
+
+          const currentUserSkills = userSkillsResponse?.data?.map(userSkill =>
             userSkill.skill?.name || userSkill.skillName || userSkill.name
           ) || [];
           setUserSkills(currentUserSkills);
@@ -107,13 +107,13 @@ export default function StudentDiscovery() {
 
       // Load users - Try discover endpoint first, fallback to search
       let studentsData = [];
-      
+
       try {
         // Try discover endpoint first
         console.log('Attempting to discover users...');
         const discoverResponse = await userService.discoverUsers();
         console.log('Discover response:', discoverResponse);
-        
+
         if (discoverResponse?.data?.content) {
           studentsData = discoverResponse.data.content;
         } else if (discoverResponse?.data && Array.isArray(discoverResponse.data)) {
@@ -123,12 +123,12 @@ export default function StudentDiscovery() {
         }
       } catch (discoverError) {
         console.warn('Discover endpoint failed, trying search...', discoverError);
-        
+
         try {
           // Fallback to search endpoint
           const searchResponse = await userService.searchUsers({});
           console.log('Search response:', searchResponse);
-          
+
           if (searchResponse?.data?.content) {
             studentsData = searchResponse.data.content;
           } else if (searchResponse?.data && Array.isArray(searchResponse.data)) {
@@ -150,14 +150,14 @@ export default function StudentDiscovery() {
       // Calculate compatibility scores and add additional data
       const studentsWithCompatibility = studentsData.map(student => {
         const studentSkills = extractStudentSkills(student);
-        
+
         return {
           ...student,
           compatibilityScore: calculateCompatibility(userSkills, studentSkills),
           skillCount: studentSkills.length,
           // Ensure proper field mapping
           displayName: student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim(),
-          profileImage: student.profileImage || student.profilePicture || student.avatar || null,
+          profileImage: student.profileImage || student.profilePictureUrl || student.profilePicture || student.avatar || null,
           studentSkills: studentSkills,
           collegeName: student.collage?.name
         };
@@ -192,7 +192,7 @@ export default function StudentDiscovery() {
         return '';
       }).filter(Boolean);
     }
-    
+
     if (student.userSkills && Array.isArray(student.userSkills)) {
       return student.userSkills.map(skill => {
         if (skill.skill?.name) return skill.skill.name;
@@ -200,21 +200,21 @@ export default function StudentDiscovery() {
         return '';
       }).filter(Boolean);
     }
-    
+
     return [];
   }
 
   function calculateCompatibility(userSkills = [], studentSkills = []) {
     if (userSkills.length === 0 || studentSkills.length === 0) return 0;
 
-    const commonSkills = userSkills.filter(skill => 
-      studentSkills.some(studentSkill => 
+    const commonSkills = userSkills.filter(skill =>
+      studentSkills.some(studentSkill =>
         studentSkill.toLowerCase() === skill.toLowerCase()
       )
     );
-    
-    const complementarySkills = studentSkills.filter(skill => 
-      !userSkills.some(userSkill => 
+
+    const complementarySkills = studentSkills.filter(skill =>
+      !userSkills.some(userSkill =>
         userSkill.toLowerCase() === skill.toLowerCase()
       )
     );
@@ -257,7 +257,7 @@ export default function StudentDiscovery() {
 
     // Graduation year filter
     if (selectedGradYear) {
-      filtered = filtered.filter(student => 
+      filtered = filtered.filter(student =>
         student.graduationYear === parseInt(selectedGradYear)
       );
     }
@@ -304,7 +304,7 @@ export default function StudentDiscovery() {
       console.log(`Connection request sent to ${studentName} (${studentId})`);
       // You can implement actual connection logic here
       // await userService.sendConnectionRequest(studentId);
-      
+
       // Show success message (you might want to add a toast notification)
       alert(`Connection request sent to ${studentName}!`);
     } catch (error) {
@@ -605,8 +605,8 @@ export default function StudentDiscovery() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2 pt-2">
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     className="flex-1"
                     onClick={() => handleConnectRequest(student.id, student.displayName)}
                   >
