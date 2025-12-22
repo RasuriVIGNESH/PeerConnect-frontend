@@ -24,7 +24,7 @@ class SkillsService {
     }
 
     // Get all skills with pagination - matches SkillController endpoint
-    async getAllSkills(page = 0, size = 20, sortBy = 'name', sortDir = 'asc') {
+    async getAllSkills(page = 0, size = 10, sortBy = 'name', sortDir = 'asc') {
         try {
             console.log('SkillsService: Getting all skills...');
             const params = { page, size, sortBy, sortDir };
@@ -51,7 +51,7 @@ class SkillsService {
     }
 
     // Get skills by category - matches SkillController endpoint
-    async getSkillsByCategory(category, page = 0, size = 20) {
+    async getSkillsByCategory(category, page = 0, size = 10) {
         try {
             console.log('SkillsService: Getting skills by category:', category);
             const params = { page, size };
@@ -95,7 +95,7 @@ class SkillsService {
     }
 
     // Search skills - FIXED parameter name to match SkillController
-    async searchSkills(searchTerm, page = 0, size = 20) {
+    async searchSkills(searchTerm, page = 0, size = 10) {
         try {
             console.log('SkillsService: Searching skills with term:', searchTerm);
             if (!searchTerm || searchTerm.trim().length === 0) {

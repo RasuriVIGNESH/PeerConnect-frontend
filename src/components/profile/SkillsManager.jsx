@@ -57,7 +57,8 @@ export default function SkillsManager() {
         { value: 'BEGINNER', label: 'Beginner', color: 'bg-gray-500' },
         { value: 'INTERMEDIATE', label: 'Intermediate', color: 'bg-blue-500' },
         { value: 'ADVANCED', label: 'Advanced', color: 'bg-green-500' },
-        { value: 'EXPERT', label: 'Expert', color: 'bg-purple-500' }
+        { value: 'EXPERT', label: 'Expert', color: 'bg-purple-500' },
+        { value: 'VIBE_CODING', label: 'Vibe Coding', color: 'bg-pink-500' }
     ];
 
     const categoryIcons = {

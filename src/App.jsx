@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import LandingPage from './components/LandingPage';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import ForgotPassword from './components/auth/ForgotPassword';
+import CompleteProfile from './components/auth/CompleteProfile';
 import Dashboard from './components/Dashboard';
 import ProfilePage from './components/profile/ProfilePage';
 import CreateProject from './components/projects/CreateProject';
@@ -22,8 +23,7 @@ import RequestsPage from './components/requests/RequestsPage';
 import Skills from './components/profile/Skills';
 import MeetingRooms from './components/project/MeetingRooms';
 import MeetingRoomsPage from '../src/components/project/MeetingRoomsPage';
-import { projectService } from './services/projectService';
-import { Loader2 } from 'lucide-react';
+
 import { Toaster } from '@/components/ui/sonner';
 import './App.css';
 
@@ -42,6 +42,14 @@ function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/auth/oauth2/redirect" element={<OAuth2RedirectHandler />} />
+              <Route
+                path="/complete-profile"
+                element={
+                  <ProtectedRoute>
+                    <CompleteProfile />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Protected Routes */}
               <Route

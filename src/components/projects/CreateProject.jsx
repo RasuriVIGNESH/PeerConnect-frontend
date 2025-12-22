@@ -270,40 +270,61 @@ export default function CreateProject() {
     }
   };
 
-  const handleSubmit = async e => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateStep(3)) {
-      setError('Please fill all required fields (*) with valid information.');
-      return;
-    }
-    setLoading(true);
-    setError('');
-    setMessage('');
+    setError("");
+
+    const isValid = validateStep(3);
+    if (!isValid) return;
+
     try {
-      // Create a payload and map the fields for the backend
+      setLoading(true);
+
+      // --- Build Payload ---
       const payload = {
         ...formData,
-        // 1. Convert maxTeamSize from a string to a number
+
+        // Convert string → number
         maxTeamSize: parseInt(formData.maxTeamSize, 10),
 
-        // 2. Map the frontend 'category' field to the backend 'categoryName'
+        // category → categoryName (backend requirement)
         categoryName: formData.category,
       };
 
-      // 3. Remove the now-redundant 'category' key
+      // Map frontend "skillsRequired" → backend "skills"
+      if (Array.isArray(formData.skillsRequired)) {
+        payload.skills = formData.skillsRequired;
+      } else {
+        payload.skills = [];
+      }
+
+      // Remove frontend-only fields
       delete payload.category;
+      delete payload.skillsRequired;
 
-      // Send the corrected payload to the service
-      await projectService.createProject(payload);
+      console.log("FINAL PAYLOAD SENT TO BACKEND:", payload);
 
-      setMessage('Project created successfully! Redirecting to dashboard...');
-      setTimeout(() => navigate('/dashboard'), 2000);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create project. Please try again.');
+      // --- API Call ---
+      const response = await projectService.createProject(payload);
+
+      const createdProject = response.data || response;
+
+      setMessage("Project created successfully!");
+      setTimeout(() => {
+        if (createdProject && createdProject.id) {
+          navigate(`/projects/${createdProject.id}`);
+        } else {
+          navigate("/projects");
+        }
+      }, 1500);
+    } catch (error) {
+      console.error("Error creating project:", error);
+      setError(error.response?.data?.message || "Something went wrong.");
     } finally {
       setLoading(false);
     }
   };
+
 
   const handleCancel = () => navigate('/dashboard');
 

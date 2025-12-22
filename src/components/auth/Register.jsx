@@ -131,6 +131,7 @@ export default function Register() {
     setError('');
     try {
       setLoading(true);
+      localStorage.setItem('oauth_intent', 'register');
       await loginWithGitHub(); // redirects
     } catch (err) {
       console.error('GitHub login error:', err);
@@ -268,7 +269,7 @@ export default function Register() {
                   <Label htmlFor="college">College</Label>
                   <div className="relative">
                     <Building className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
-                    <Select onValueChange={(value) => handleSelectChange('collegeId', value ? parseInt(value) : null)} disabled={isLoadingStaticData}>
+                    <Select onValueChange={(value) => handleSelectChange('collegeId', value)} disabled={isLoadingStaticData}>
                       <SelectTrigger className="pl-10">
                         <SelectValue placeholder={isLoadingStaticData ? "Loading..." : "Select your college"} />
                       </SelectTrigger>

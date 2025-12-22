@@ -44,6 +44,7 @@ export default function Login() {
   async function handleGitHubLogin() {
     try {
       setLoading(true);
+      localStorage.setItem('oauth_intent', 'login');
       await loginWithGitHub(); // this will redirect the browser to backend -> GitHub
       // since a redirect occurs, we won't get further here
     } catch (err) {

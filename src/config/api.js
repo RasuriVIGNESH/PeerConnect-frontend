@@ -1,6 +1,6 @@
 // API Configuration
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api',
+  BASE_URL: import.meta.env.VITE_API_BASE_URL || { BACKEND_BASE_URL },
   TIMEOUT: 10000, // 10 seconds
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000, // 1 second
@@ -50,11 +50,11 @@ class ApiService {
     const headers = {
       'Content-Type': 'application/json',
     };
-    
+
     if (includeAuth && this.getToken()) {
       headers['Authorization'] = `Bearer ${this.getToken()}`;
     }
-    
+
     return headers;
   }
 
@@ -74,22 +74,22 @@ class ApiService {
 
     try {
       console.log(`Making ${config.method || 'GET'} request to:`, url, `(attempt ${attempt})`);
-      
+
       // Create abort controller for timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-      
+
       const response = await fetch(url, {
         ...config,
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       // Handle different response types
       const contentType = response.headers.get('content-type');
       let data;
-      
+
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
       } else if (response.status === 204) {
@@ -101,36 +101,36 @@ class ApiService {
 
       if (!response.ok) {
         console.error(`API Error ${response.status}:`, data);
-        
+
         // Handle authentication errors
         if (response.status === 401) {
           console.log('Authentication failed, clearing token and redirecting to login');
           this.setToken(null);
-          
+
           // Only redirect if we're not already on login page
           if (!window.location.pathname.includes('/login')) {
             window.location.href = '/login';
           }
           throw new Error('Authentication failed. Please login again.');
         }
-        
+
         // Handle permission errors
         if (response.status === 403) {
           throw new Error('You do not have permission to perform this action.');
         }
-        
+
         // Handle not found errors
         if (response.status === 404) {
           throw new Error('Resource not found.');
         }
-        
+
         // Handle server errors with retry
         if (response.status >= 500 && attempt < this.retryAttempts) {
           console.log(`Server error, retrying in ${this.retryDelay}ms...`);
           await this.sleep(this.retryDelay * attempt);
           return this.request(endpoint, options, attempt + 1);
         }
-        
+
         // Handle other HTTP errors
         const errorMessage = data?.message || data?.error || data || `HTTP ${response.status}: ${response.statusText}`;
         throw new Error(errorMessage);
@@ -140,7 +140,7 @@ class ApiService {
       return data;
     } catch (error) {
       console.error('Request failed:', error);
-      
+
       // Handle network errors with retry
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
         if (attempt < this.retryAttempts) {
@@ -150,7 +150,7 @@ class ApiService {
         }
         throw new Error('Network error. Please check your connection and try again.');
       }
-      
+
       // Handle timeout errors with retry
       if (error.name === 'AbortError') {
         if (attempt < this.retryAttempts) {
@@ -160,7 +160,7 @@ class ApiService {
         }
         throw new Error('Request timeout. Please try again.');
       }
-      
+
       throw error;
     }
   }
@@ -173,10 +173,10 @@ class ApiService {
         queryParams.append(key, params[key]);
       }
     });
-    
+
     const queryString = queryParams.toString();
     const url = queryString ? `${endpoint}?${queryString}` : endpoint;
-    
+
     return this.request(url, { method: 'GET' });
   }
 
@@ -221,9 +221,9 @@ class ApiService {
   // Health check method
   async healthCheck() {
     try {
-      await this.request('/health', { 
+      await this.request('/health', {
         method: 'GET',
-        includeAuth: false 
+        includeAuth: false
       });
       return true;
     } catch (error) {

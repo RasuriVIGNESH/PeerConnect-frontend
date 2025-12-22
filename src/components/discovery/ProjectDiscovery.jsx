@@ -106,7 +106,7 @@ export default function ProjectDiscovery() {
     const projectsData = response.content || [];
     const processedProjects = projectsData.map(project => ({
       ...project,
-      requiredSkills: (project.projectSkills || [])
+      requiredSkills: (project.requiredSkills || [])
         .map(skillObj => skillObj.skill?.name)
         .filter(Boolean) || [],
     }));

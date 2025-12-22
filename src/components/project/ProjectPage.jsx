@@ -666,7 +666,7 @@ export default function ProjectPage() {
         goals: project.goals || '',
         objectives: project.objectives || '',
         techStackList: (project.techStackList || []).join(', '),
-        projectSkills: (project.projectSkills || []).map(ps => ps.skill.name).join(', '),
+        projectSkills: (project.requiredSkills || project.projectSkills || []).map(ps => ps.skill.name).join(', '),
         githubRepo: project.githubRepo || '',
         demoUrl: project.demoUrl || ''
       });
@@ -802,7 +802,7 @@ export default function ProjectPage() {
               <div className="lg:col-span-1 space-y-6">
                 <Card><CardHeader><CardTitle>Team Size</CardTitle></CardHeader><CardContent>{isEditing ? <Input id="maxTeamSize" type="number" value={editForm.maxTeamSize} onChange={handleFormChange} /> : <p className="text-2xl font-bold">{project.currentTeamSize + 1} / {project.maxTeamSize}</p>}</CardContent></Card>
                 <Card><CardHeader><CardTitle>Tech Stack</CardTitle></CardHeader><CardContent>{isEditing ? <Input id="techStackList" placeholder="Comma-separated" value={editForm.techStackList} onChange={handleFormChange} /> : <div className="flex flex-wrap gap-2">{(project.techStackList || []).map(tech => <Badge key={tech} variant="secondary">{tech}</Badge>)}</div>}</CardContent></Card>
-                <Card><CardHeader><CardTitle>Required Skills</CardTitle></CardHeader><CardContent>{isEditing ? <Input id="projectSkills" placeholder="Comma-separated" value={editForm.projectSkills} onChange={handleFormChange} /> : <div className="flex flex-wrap gap-2">{(project.projectSkills || []).map(ps => <Badge key={ps.id} variant="secondary">{ps.skill.name}</Badge>)}</div>}</CardContent></Card>
+                <Card><CardHeader><CardTitle>Required Skills</CardTitle></CardHeader><CardContent>{isEditing ? <Input id="projectSkills" placeholder="Comma-separated" value={editForm.projectSkills} onChange={handleFormChange} /> : <div className="flex flex-wrap gap-2">{(project.requiredSkills || project.projectSkills || []).map((ps, idx) => <Badge key={ps.id || idx} variant="secondary">{ps.skill.name}</Badge>)}</div>}</CardContent></Card>
                 <Card><CardHeader><CardTitle>Links</CardTitle></CardHeader><CardContent className="space-y-2">{isEditing ? <><Input id="githubRepo" placeholder="GitHub URL" value={editForm.githubRepo} onChange={handleFormChange} /><Input id="demoUrl" placeholder="Demo URL" value={editForm.demoUrl} onChange={handleFormChange} /></> : <>{project.githubRepo && <a href={project.githubRepo} target="_blank" rel="noopener noreferrer">GitHub</a>}{project.demoUrl && <a href={project.demoUrl} target="_blank" rel="noopener noreferrer">Live Demo</a>}</>}</CardContent></Card>
                 {/* {project.lead && <Card><CardHeader><CardTitle>Project Lead</CardTitle></CardHeader><CardContent><h3>{project.lead.firstName} {project.lead.lastName}</h3><p className="text-sm text-gray-500">{project.lead.branch}</p></CardContent></Card>} */}
               </div>

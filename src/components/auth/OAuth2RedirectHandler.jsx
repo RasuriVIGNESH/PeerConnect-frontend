@@ -68,7 +68,20 @@ export default function OAuth2RedirectHandler() {
         setStatus('success');
         setMessage('Successfully authenticated with GitHub!');
 
-        setTimeout(() => navigate('/dashboard'), 1200);
+        // Check if user has college info (either collegeId or college object)
+        const hasCollege = user.collegeId || (user.college && user.college.id);
+        const oauthIntent = localStorage.getItem('oauth_intent');
+        // We don't remove oauth_intent here because in React Strict Mode, 
+        // the effect runs twice. If we remove it in the first run, the second run 
+        // (which might be the one that effectively navigates) will see null.
+        // It's safe to leave it as it will be overwritten by the next login/register action.
+
+        if (oauthIntent === 'register' && !hasCollege) {
+          setMessage('Please complete your profile details...');
+          setTimeout(() => navigate('/complete-profile'), 1200);
+        } else {
+          setTimeout(() => navigate('/dashboard'), 1200);
+        }
       } catch (err) {
         console.error('OAuth2 redirect error:', err);
         setStatus('error');
@@ -107,7 +120,7 @@ export default function OAuth2RedirectHandler() {
               <AlertDescription className="text-green-800">
                 {message}
                 <br />
-                <span className="text-sm">Redirecting to dashboard...</span>
+                <span className="text-sm">Redirecting...</span>
               </AlertDescription>
             </Alert>
           )}

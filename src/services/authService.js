@@ -1,5 +1,4 @@
 import apiService from './api.js';
-import { LINKEDIN_CONFIG } from '../config/api.js';
 
 
 class AuthService {
