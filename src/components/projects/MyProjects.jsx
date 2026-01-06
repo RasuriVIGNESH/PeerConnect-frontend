@@ -262,8 +262,8 @@ const MyProjects = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">All Categories</SelectItem>
-                  {categories.map(category => (
-                    <SelectItem key={category.id} value={category.name}>
+                  {categories.map((category, idx) => (
+                    <SelectItem key={category.id || idx} value={category.name}>
                       {category.name}
                     </SelectItem>
                   ))}

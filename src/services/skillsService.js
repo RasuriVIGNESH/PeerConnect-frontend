@@ -203,7 +203,7 @@ class SkillsService {
     }
 
     // Add user skill - matches UserController endpoint and request format
-    async addUserSkill(skillData) {
+    async addUserSkill(skillData, currentUser) {
         try {
             console.log('SkillsService: Adding user skill with data:', skillData);
 
@@ -213,10 +213,12 @@ class SkillsService {
             }
 
             // Map frontend data to backend AddUserSkillRequest format
+            // Flattened structure based on validation error feedback
             const requestData = {
                 skillName: skillData.skillName,
                 level: skillData.level || 'BEGINNER',
-                experience: skillData.experience || skillData.notes || ''
+                experience: String(skillData.experience || skillData.notes || '0'),
+                currentUser: currentUser
             };
 
             console.log('SkillsService: Sending request data:', requestData);

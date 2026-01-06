@@ -1,820 +1,660 @@
-// src/components/project/ProjectPage.jsx
-
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 
 // UI Components
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // Icons
 import {
-  ArrowLeft, Users, CheckCircle, Clock, Target, Settings, Edit3, Github,
-  Link as LinkIcon, AlertCircle, Crown, Code, ExternalLink, Award,
-  TrendingUp, ShieldCheck, Mail, UserPlus, Plus, Trash2, Calendar,
-  Circle, Send, Loader2, Shield, UserX, MessageSquare, Save, XCircle, Ban
+  LayoutDashboard, ClipboardList, Users, MessageSquare, Settings,
+  Github, Globe, ArrowLeft, Plus, Send, Sparkles,
+  CheckCircle2, Rocket, Zap, MoreVertical, Link as LinkIcon, Trash2, Video,
+  Search, Flag, Layers, MoreHorizontal, Calendar, Tag
 } from 'lucide-react';
 
 // Services
 import { projectService } from '../../services/projectService.js';
 import { chatService } from '../../services/Chatservice.js';
-import { joinRequestService } from '../../services/JoinRequestService.js';
 
-// Helper Functions
-const getStatusColor = (status) => ({
-  'PLANNING': 'bg-blue-100 text-blue-800', 'RECRUITING': 'bg-purple-100 text-purple-800',
-  'ACTIVE': 'bg-green-100 text-green-800', 'IN_PROGRESS': 'bg-green-100 text-green-800',
-  'ON_HOLD': 'bg-yellow-100 text-yellow-800', 'COMPLETED': 'bg-gray-200 text-gray-800'
-}[status] || 'bg-gray-100 text-gray-800');
-
-const formatDate = (dateString) => {
-  if (!dateString) return 'N/A';
-  // Handle both array and string date formats
-  const date = new Date(Array.isArray(dateString) ? dateString.join('-') : dateString);
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-};
-
-// ===================================================================================
-//                                TASK MANAGEMENT
-// ===================================================================================
-function TaskManagement({ projectId, isProjectLead, project }) {
-  const { userProfile } = useAuth(); // Get current user's profile
-  const [tasks, setTasks] = useState([]);
-  const [assignableMembers, setAssignableMembers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [showTaskDialog, setShowTaskDialog] = useState(false);
-  const [editingTask, setEditingTask] = useState(null);
-  const [taskForm, setTaskForm] = useState({
-    title: '', description: '', assignedToId: '',
-    priority: 'MEDIUM', status: 'TODO', dueDate: '', estimatedHours: ''
-  });
-
-  const loadData = async () => {
-    try {
-      setLoading(true); setError('');
-      const [tasksData, membersRes] = await Promise.all([
-        projectService.getProjectTasks(projectId),
-        projectService.getProjectMembers(projectId)
-      ]);
-      setTasks(tasksData || []);
-      const members = membersRes.data?.content || membersRes.data || [];
-      const projectLead = project?.lead;
-      let finalAssignableMembers = [...members];
-      if (projectLead && !members.some(m => m.user.id === projectLead.id)) {
-        finalAssignableMembers.unshift({ user: projectLead, role: 'Lead' });
-      }
-      setAssignableMembers(finalAssignableMembers);
-    } catch (err) {
-      setError('Failed to load tasks and members.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { loadData(); }, [projectId, project]);
-
-  const handleOpenDialog = (task = null) => {
-    setEditingTask(task);
-    if (task) {
-      setTaskForm({
-        title: task.title || '',
-        description: task.description || '',
-        assignedToId: task.assignedToId || '',
-        priority: task.priority || 'MEDIUM',
-        status: task.status || 'TODO',
-        dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
-        estimatedHours: task.estimatedHours || ''
-      });
-    } else {
-      setTaskForm({
-        title: '', description: '', assignedToId: '',
-        priority: 'MEDIUM', status: 'TODO', dueDate: '', estimatedHours: ''
-      });
-    }
-    setShowTaskDialog(true);
-  };
-
-  const handleSaveTask = async () => {
-    try {
-      const creating = !editingTask;
-      let payload;
-
-      if (creating) {
-        // Everyone can create tasks and assign them to any team member
-        payload = {
-          ...taskForm,
-          assignedToId: taskForm.assignedToId || null,
-          estimatedHours: taskForm.estimatedHours ? parseInt(taskForm.estimatedHours, 10) : null,
-        };
-        await projectService.createTask(projectId, payload);
-      } else {
-        // Editing: leads can edit all fields; members can update status
-        if (isProjectLead) {
-          payload = {
-            ...taskForm,
-            assignedToId: taskForm.assignedToId || null,
-            estimatedHours: taskForm.estimatedHours ? parseInt(taskForm.estimatedHours, 10) : null,
-          };
-        } else {
-          payload = { status: taskForm.status };
-        }
-        await projectService.updateTask(projectId, editingTask.id, payload);
-      }
-      setShowTaskDialog(false);
-      loadData();
-    } catch (err) {
-      setError(err.message || 'Failed to save task.');
-    }
-  };
-
-  const handleDeleteTask = async (taskId) => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
-      try {
-        await projectService.deleteTask(projectId, taskId);
-        loadData();
-      } catch (err) {
-        setError('Failed to delete task.');
-      }
-    }
-  };
-
-  if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
-
-  return (
-    <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Project Tasks</CardTitle>
-          <Button onClick={() => handleOpenDialog()}><Plus className="h-4 w-4 mr-2" />Create Task</Button>
-        </CardHeader>
-        <CardContent>
-          {error && <Alert variant="destructive" className="mb-4"><AlertDescription>{error}</AlertDescription></Alert>}
-          <div className="space-y-3">
-            {tasks.length > 0 ? tasks.map(task => {
-              const isAssignedToCurrentUser = task.assignedToId === userProfile.id;
-              const canEdit = isProjectLead || isAssignedToCurrentUser;
-
-              return (
-                <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
-                  <div>
-                    <p className="font-semibold">{task.title}</p>
-                    <p className="text-sm text-gray-500">{task.assignedToName || 'Unassigned'} • Due: {formatDate(task.dueDate)}</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Badge variant="outline">{task.priority}</Badge>
-                    <Badge variant="secondary">{task.status.replace('_', ' ')}</Badge>
-                    {/* Show edit button if user is lead OR task is assigned to them */}
-                    {canEdit && (
-                      <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(task)}><Edit3 className="h-4 w-4" /></Button>
-                    )}
-                    {/* Only lead can delete tasks */}
-                    {isProjectLead && (
-                      <Button variant="ghost" size="icon" className="text-red-600" onClick={() => handleDeleteTask(task.id)}><Trash2 className="h-4 w-4" /></Button>
-                    )}
-                  </div>
-                </div>
-              );
-            }) : <p className="text-center text-gray-500 py-4">No tasks created yet.</p>}
-          </div>
-        </CardContent>
-      </Card>
-
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{editingTask ? 'Edit Task' : 'Create New Task'}</DialogTitle>
-          <DialogDescription>
-            {editingTask
-              ? (isProjectLead
-                ? 'Update any details for this task.'
-                : 'You can update the status. Other fields are restricted to the lead.')
-              : 'Create a task and assign it to any team member.'}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          {/** When creating a task, all users can edit full fields; when editing, only leads can edit full fields */}
-          <Input placeholder="Title" value={taskForm.title} onChange={e => setTaskForm({ ...taskForm, title: e.target.value })} disabled={!!editingTask && !isProjectLead} />
-          <Textarea placeholder="Description" value={taskForm.description} onChange={e => setTaskForm({ ...taskForm, description: e.target.value })} disabled={!!editingTask && !isProjectLead} />
-          <div className="grid grid-cols-2 gap-4">
-            <div><Label>Assign To</Label><Select onValueChange={value => setTaskForm({ ...taskForm, assignedToId: value })} value={taskForm.assignedToId} disabled={!!editingTask && !isProjectLead}><SelectTrigger><SelectValue placeholder="Select member" /></SelectTrigger><SelectContent>{assignableMembers.map(m => <SelectItem key={m.user.id} value={m.user.id}>{m.user.firstName} {m.user.lastName}</SelectItem>)}</SelectContent></Select></div>
-            <div><Label>Priority</Label><Select onValueChange={value => setTaskForm({ ...taskForm, priority: value })} value={taskForm.priority} disabled={!!editingTask && !isProjectLead}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="LOW">Low</SelectItem><SelectItem value="MEDIUM">Medium</SelectItem><SelectItem value="HIGH">High</SelectItem></SelectContent></Select></div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            {/* The status field is always enabled for editing */}
-            <div><Label>Status</Label><Select onValueChange={value => setTaskForm({ ...taskForm, status: value })} value={taskForm.status}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="TODO">To Do</SelectItem><SelectItem value="IN_PROGRESS">In Progress</SelectItem><SelectItem value="COMPLETED">Completed</SelectItem></SelectContent></Select></div>
-            <div><Label>Estimated Hours</Label><Input type="number" placeholder="e.g., 8" value={taskForm.estimatedHours} onChange={e => setTaskForm({ ...taskForm, estimatedHours: e.target.value })} disabled={!!editingTask && !isProjectLead} /></div>
-          </div>
-          <div><Label>Due Date</Label><Input type="date" value={taskForm.dueDate} onChange={e => setTaskForm({ ...taskForm, dueDate: e.target.value })} disabled={!!editingTask && !isProjectLead} /></div>
-        </div>
-        <DialogFooter><Button onClick={handleSaveTask}>Save Changes</Button></DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-// Helper to get profile image source
-const getProfileImage = (user) => {
-  if (!user) return null;
-  if (user.profilePictureUrl) return user.profilePictureUrl;
-  if (user.profileImage) return user.profileImage;
-  if (user.profilePhoto) {
-    // If it's a URL (http/https), return it as is
-    if (user.profilePhoto.startsWith('http')) return user.profilePhoto;
-
-    // If it's a base64 string
-    return user.profilePhoto.startsWith('data:image')
-      ? user.profilePhoto
-      : `data:image/png;base64,${user.profilePhoto}`;
-  }
-  return null;
-};
-
-// ===================================================================================
-//                                TEAM MANAGEMENT
-// ===================================================================================
-function MemberManagement({ projectId, isProjectLead, project }) {
-  const [members, setMembers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const loadMembersAndLead = async () => {
-      try {
-        setLoading(true);
-        const res = await projectService.getProjectMembers(projectId);
-        const projectMembers = res.data?.content || res.data || [];
-
-        const lead = project?.lead;
-        let allTeamMembers = [...projectMembers];
-
-        // Check if the lead is already in the members list
-        const leadIsAlreadyMember = projectMembers.some(member => member.user.id === lead.id);
-
-        if (lead && !leadIsAlreadyMember) {
-          // Add the lead to the start of the array if they aren't listed
-          allTeamMembers.unshift({
-            id: `lead-${lead.id}`, // Create a unique key for the lead
-            user: lead,
-            role: 'Lead'
-          });
-        } else if (lead && leadIsAlreadyMember) {
-          // Ensure the lead's role is correctly labeled if they are in the list
-          const leadInList = allTeamMembers.find(member => member.user.id === lead.id);
-          if (leadInList) leadInList.role = 'Lead';
-        }
-
-        setMembers(allTeamMembers);
-      } catch (error) {
-        console.error("Failed to load members", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (project) {
-      loadMembersAndLead();
-    }
-  }, [projectId, project]);
-
-  const handleRemoveMember = async (memberId) => {
-    if (window.confirm("Are you sure you want to remove this member?")) {
-      try {
-        await projectService.removeMember(projectId, memberId);
-        // Manually filter out the removed member to refresh the UI instantly
-        setMembers(prevMembers => prevMembers.filter(m => m.id !== memberId));
-      }
-      catch (error) { alert("Failed to remove member."); }
-    }
-  };
-
-  if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>;
-
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Team Members ({members.length})</CardTitle>
-        <Button onClick={() => navigate(`/projects/${projectId}/invite`)}><UserPlus className="mr-2 h-4 w-4" />Add Members</Button>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          {members.map(member => (
-            <div key={member.id} className="flex items-center justify-between p-2 border rounded">
-              <div className="flex items-center gap-3">
-                <Avatar>
-                  <AvatarImage src={getProfileImage(member.user)} />
-                  <AvatarFallback>{member.user.firstName?.[0]}{member.user.lastName?.[0]}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-semibold">{member.user.firstName} {member.user.lastName}</p>
-                  <p className="text-sm text-gray-500">{member.role}</p>
-                </div>
-              </div>
-              {isProjectLead && member.role !== 'Lead' && (
-                <Button variant="ghost" size="icon" className="text-red-600" onClick={() => handleRemoveMember(member.id)}>
-                  <UserX className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ===================================================================================
-//                                PROJECT CHAT
-// ===================================================================================
-function ProjectChat({ projectId }) {
-  const { userProfile } = useAuth();
-  const [messages, setMessages] = useState([]);
-  const [messageInput, setMessageInput] = useState('');
-  const [loading, setLoading] = useState(true);
-  const chatEndRef = useRef(null);
-  const latestMessageTimestamp = useRef(new Date().toISOString());
-
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        setLoading(true);
-        const res = await chatService.getProjectMessages(projectId, 0, 50);
-        const fetchedMessages = (res.data?.content || res.data || []).reverse();
-        setMessages(fetchedMessages);
-        if (fetchedMessages.length > 0) {
-          latestMessageTimestamp.current = fetchedMessages[fetchedMessages.length - 1].sentAt;
-        }
-      } catch (error) { console.error("Failed to load chat history", error); }
-      finally { setLoading(false); }
-    };
-    fetchHistory();
-  }, [projectId]);
-
-  // Polling for new messages
-  useEffect(() => {
-    const poll = setInterval(async () => {
-      try {
-        const res = await chatService.getMessagesAfter(projectId, latestMessageTimestamp.current);
-        const newMessages = res.data || [];
-        if (newMessages.length > 0) {
-          setMessages(prev => [...prev, ...newMessages]);
-          latestMessageTimestamp.current = newMessages[newMessages.length - 1].sentAt;
-        }
-      } catch (error) { console.error("Polling error", error); }
-    }, 5000);
-    return () => clearInterval(poll);
-  }, [projectId]);
-
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
-
-  const handleSendMessage = async () => {
-    if (messageInput.trim()) {
-      try {
-        await chatService.sendMessage(projectId, messageInput);
-        setMessageInput('');
-        // Fetch immediately after sending for responsiveness
-        const res = await chatService.getMessagesAfter(projectId, latestMessageTimestamp.current);
-        const newMessages = res.data || [];
-        if (newMessages.length > 0) {
-          setMessages(prev => [...prev, ...newMessages]);
-          latestMessageTimestamp.current = newMessages[newMessages.length - 1].sentAt;
-        }
-      } catch (error) { alert("Failed to send message."); }
-    }
-  };
-
-  return (
-    <Card className="h-[600px] flex flex-col"><CardHeader><CardTitle>Team Chat</CardTitle></CardHeader>
-      <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
-        {loading ? (
-          <div className="flex justify-center">
-            <Loader2 className="animate-spin" />
-          </div>
-        ) : (
-          messages.map((msg) => (
-            <div key={msg.id} className={`flex items-end gap-2 ${msg.sender.id === userProfile.id ? 'justify-end' : 'justify-start'}`}>
-              {msg.sender.id !== userProfile.id && (
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={getProfileImage(msg.sender)} />
-                  <AvatarFallback>{msg.sender.firstName?.[0]}</AvatarFallback>
-                </Avatar>
-              )}
-              <div className={`p-3 rounded-lg max-w-sm ${msg.sender.id === userProfile.id ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>
-                <p className="font-semibold text-sm">{msg.sender.firstName}</p>
-                <p className="text-sm mt-1">{msg.content}</p>
-              </div>
-            </div>
-          ))
-        )}
-        <div ref={chatEndRef} />
-      </CardContent>
-      <div className="p-4 border-t flex items-center gap-2">
-        <Input
-          placeholder="Type a message..."
-          value={messageInput}
-          onChange={(e) => setMessageInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-        />
-        <Button onClick={handleSendMessage}>
-          <Send className="h-4 w-4" />
-        </Button>
-      </div>
-    </Card>
-  );
-}
-
-// ===================================================================================
-//                                 PROJECT MANAGE TAB
-// ===================================================================================
-function ProjectManage({ project, onRefresh }) {
-  return (
-    <Tabs defaultValue="requests">
-      <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="requests">Join Requests</TabsTrigger>
-        <TabsTrigger value="settings">Settings</TabsTrigger>
-      </TabsList>
-      <TabsContent value="requests"><ProjectRequests requests={project.projectJoinRequests || []} onRefresh={onRefresh} /></TabsContent>
-      <TabsContent value="settings"><ProjectSettings projectId={project.id} /></TabsContent>
-    </Tabs>
-  );
-}
-
-function ProjectRequests({ requests, onRefresh }) {
-  const [processingId, setProcessingId] = useState(null);
-
-  // --- 1. Split requests into pending and past ---
-  const { pendingRequests, pastRequests } = useMemo(() => {
-    const pending = [];
-    const past = [];
-
-    // Ensure requests is an array before filtering
-    (requests || []).forEach(req => {
-      if (req.status === 'PENDING') {
-        pending.push(req);
-      } else {
-        past.push(req);
-      }
-    });
-
-    return { pendingRequests: pending, pastRequests: past };
-  }, [requests]);
-
-  const handleResponse = async (requestId, action) => {
-    setProcessingId(requestId);
-    try {
-      if (action === 'accept') {
-        await joinRequestService.acceptJoinRequest(requestId);
-      } else {
-        await joinRequestService.rejectJoinRequest(requestId);
-      }
-      onRefresh();
-    } catch (error) {
-      alert(`Failed to ${action} request.`);
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Join Requests</CardTitle>
-        <CardDescription>Review and respond to requests from students to join your project.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6"> {/* Added space for separation */}
-
-        {/* --- 2. Render Pending Requests --- */}
-        <div className="space-y-2">
-          <h3 className="text-base font-semibold text-gray-800">Pending ({pendingRequests.length})</h3>
-          {pendingRequests.length > 0 ? (
-            pendingRequests.map(req => (
-              <div key={req.id} className="p-3 border rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <p className="font-semibold">{req.user.firstName} {req.user.lastName}</p>
-                  <p className="text-sm text-gray-500">{req.user.branch} • Class of {req.user.graduationYear}</p>
-                  {req.message && <p className="mt-1 text-sm text-gray-700 bg-gray-50 p-2 rounded">"{req.message}"</p>}
-                </div>
-                <div className="flex gap-2 flex-shrink-0">
-                  <Button size="sm" variant="outline" onClick={() => handleResponse(req.id, 'reject')} disabled={processingId === req.id}>
-                    {processingId === req.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reject'}
-                  </Button>
-                  <Button size="sm" onClick={() => handleResponse(req.id, 'accept')} disabled={processingId === req.id}>
-                    {processingId === req.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Accept'}
-                  </Button>
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className="text-center text-gray-500 py-4">No pending join requests.</p>
-          )}
-        </div>
-
-        {/* --- 3. Render Past Requests (History) --- */}
-        {pastRequests.length > 0 && (
-          <div className="space-y-2">
-            <h3 className="text-base font-semibold text-gray-800">History ({pastRequests.length})</h3>
-            {pastRequests.map(req => (
-              <div key={req.id} className="p-3 border rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50/50 opacity-80">
-                <div>
-                  <p className="font-semibold">{req.user.firstName} {req.user.lastName}</p>
-                  <p className="text-sm text-gray-500">{req.user.branch} • Class of {req.user.graduationYear}</p>
-                </div>
-                <div className="flex-shrink-0">
-                  <Badge
-                    className={
-                      req.status === 'ACCEPTED'
-                        ? 'bg-green-100 text-green-800 border-green-200'
-                        : 'bg-red-100 text-red-800 border-red-200'
-                    }
-                    variant="outline"
-                  >
-                    {req.status}
-                  </Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-      </CardContent>
-    </Card>
-  );
-}
-
-function ProjectEdit({ project, onProjectUpdate }) {
-  const [form, setForm] = useState({ title: '', description: '', category: '', maxTeamSize: '', problemStatement: '', goals: '', objectives: '', techStack: '', githubRepo: '', demoUrl: '' });
-
-  useEffect(() => {
-    setForm({
-      title: project.title || '', description: project.description || '', category: (project.category?.name || project.category || ''),
-      maxTeamSize: project.maxTeamSize || '', problemStatement: project.problemStatement || '',
-      goals: project.goals || '', objectives: project.objectives || '',
-      techStack: (project.techStackList || []).join(', '), githubRepo: project.githubRepo || '', demoUrl: project.demoUrl || ''
-    });
-  }, [project]);
-
-  const handleChange = (e) => setForm({ ...form, [e.target.id]: e.target.value });
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const payload = { ...form, techStack: form.techStack.split(',').map(s => s.trim()), maxTeamSize: Number(form.maxTeamSize) };
-      const res = await projectService.updateProject(project.id, payload);
-      alert("Project updated successfully!");
-      onProjectUpdate(res.data);
-    } catch (error) { alert("Failed to update project."); }
-  };
-
-  return (
-    <Card><CardHeader><CardTitle>Edit Project Details</CardTitle></CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div><Label htmlFor="title">Title</Label><Input id="title" value={form.title} onChange={handleChange} /></div>
-            <div><Label htmlFor="category">Category</Label><Input id="category" value={form.category} onChange={handleChange} /></div>
-          </div>
-          <div><Label htmlFor="description">Description</Label><Textarea id="description" value={form.description} onChange={handleChange} /></div>
-          <div><Label htmlFor="problemStatement">Problem Statement</Label><Textarea id="problemStatement" value={form.problemStatement} onChange={handleChange} /></div>
-          <div><Label htmlFor="goals">Goals</Label><Textarea id="goals" value={form.goals} onChange={handleChange} /></div>
-          <div><Label htmlFor="techStack">Tech Stack (comma-separated)</Label><Input id="techStack" value={form.techStack} onChange={handleChange} /></div>
-          <div><Label htmlFor="githubRepo">GitHub Repository</Label><Input id="githubRepo" value={form.githubRepo} onChange={handleChange} /></div>
-          <Button type="submit"><Save className="h-4 w-4 mr-2" />Save Changes</Button>
-        </form>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ProjectSettings({ projectId }) {
-  const navigate = useNavigate();
-  const handleDelete = async () => {
-    try { await projectService.deleteProject(projectId); alert("Project deleted successfully."); navigate('/projects/my-projects'); }
-    catch (error) { alert("Failed to delete project."); }
-  };
-
-  return (
-    <Card className="border-red-500"><CardHeader><CardTitle>Project Settings</CardTitle></CardHeader>
-      <CardContent>
-        <div className="flex justify-between items-center">
-          <div><h3 className="font-semibold">Delete Project</h3><p className="text-sm text-gray-600">This action is irreversible and will permanently delete the project.</p></div>
-          <Dialog><DialogTrigger asChild><Button variant="destructive"><Trash2 className="h-4 w-4 mr-2" />Delete</Button></DialogTrigger>
-            <DialogContent><DialogHeader><DialogTitle>Are you absolutely sure?</DialogTitle><DialogDescription>This action cannot be undone.</DialogDescription></DialogHeader>
-              <DialogFooter><DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose><Button variant="destructive" onClick={handleDelete}>Confirm Delete</Button></DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-
-// ===================================================================================
-//                                MAIN PROJECT PAGE
-// ===================================================================================
 export default function ProjectPage() {
   const { projectId } = useParams();
-  const { userProfile } = useAuth();
+  const { userProfile, currentUser } = useAuth();
   const navigate = useNavigate();
 
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // State for in-page editing
-  const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({});
-
-  const loadProjectData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await projectService.getProject(projectId);
-      setProject(response);
-    } catch (err) {
-      setError('Failed to load project details.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [activeTab, setActiveTab] = useState('overview');
+  const [members, setMembers] = useState([]);
 
   useEffect(() => {
-    if (projectId) {
-      loadProjectData();
-    }
+    const load = async () => {
+      try {
+        const [projectData, membersData] = await Promise.all([
+          projectService.getProject(projectId),
+          projectService.getProjectMembers(projectId)
+        ]);
+        setProject(projectData);
+        setMembers(membersData.data?.content || membersData.data || []);
+      } catch (err) { console.error(err); }
+      finally { setLoading(false); }
+    };
+    load();
   }, [projectId]);
 
-  // When project data loads or editing is cancelled, populate the edit form state
-  useEffect(() => {
-    if (project) {
-      setEditForm({
-        title: project.title || '',
-        description: project.description || '',
-        category: project.category?.name || project.category || '',
-        status: project.status || 'RECRUITING', // Add status to form
-        maxTeamSize: project.maxTeamSize || '',
-        problemStatement: project.problemStatement || '',
-        goals: project.goals || '',
-        objectives: project.objectives || '',
-        techStackList: (project.techStackList || []).join(', '),
-        projectSkills: (project.requiredSkills || project.projectSkills || []).map(ps => ps.skill.name).join(', '),
-        githubRepo: project.githubRepo || '',
-        demoUrl: project.demoUrl || ''
-      });
-    }
-  }, [project, isEditing]); // Rerun when isEditing changes to reset form on cancel
+  if (loading) return (
+    <div className="h-screen w-full flex items-center justify-center bg-white">
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+        className="w-10 h-10 border-2 border-indigo-600 border-t-transparent rounded-full"
+      />
+    </div>
+  );
 
-  const handleFormChange = (e) => {
-    setEditForm({ ...editForm, [e.target.id]: e.target.value });
-  };
+  const currentUserId = userProfile?.id || currentUser?.id || currentUser?.userId || currentUser?._id;
 
-  const handleSelectChange = (field, value) => {
-    setEditForm({ ...editForm, [field]: value });
-  };
+  const isProjectLead = (currentUserId && project?.lead?.id && String(currentUserId) === String(project.lead.id)) ||
+    (userProfile?.email === project?.lead?.email);
 
-  const handleSaveChanges = async () => {
-    setLoading(true);
-    try {
-      const payload = {
-        ...editForm,
-        techStack: editForm.techStackList.split(',').map(s => s.trim()).filter(Boolean),
-        projectSkills: editForm.projectSkills.split(',').map(s => s.trim()).filter(Boolean),
-        maxTeamSize: Number(editForm.maxTeamSize)
-      };
-      delete payload.techStackList;
-
-      await projectService.updateProject(project.id, payload);
-      setIsEditing(false);
-      await loadProjectData();
-    } catch (err) {
-      setError('Failed to save changes.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-  };
-
-  if (loading && !isEditing) return <div className="flex h-screen items-center justify-center"><Loader2 className="h-16 w-16 animate-spin text-blue-600" /></div>;
-  if (error || !project) return <div className="flex h-screen items-center justify-center"><Alert variant="destructive" className="max-w-md"><AlertCircle className="h-4 w-4" /><AlertDescription>{error || 'Project not found.'}</AlertDescription></Alert></div>;
-
-  const isProjectLead = project.lead?.id === userProfile?.id;
+  const isMember = members.some(m => String(m.user.id) === String(currentUserId)) || isProjectLead;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* --- HEADER --- */}
-        <div className="mb-6">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/projects/my-projects')} className="mb-4"><ArrowLeft className="w-4 h-4 mr-2" />Back to My Projects</Button>
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex-1">
-              {isEditing ? (
-                <Input id="title" value={editForm.title} onChange={handleFormChange} className="text-4xl font-bold h-auto p-0 border-b focus-visible:ring-0" />
-              ) : (
-                <h1 className="text-4xl font-bold text-gray-900">{project.title}</h1>
-              )}
-              <div className="flex items-center gap-3 flex-wrap mt-2">
-                {isEditing ? (
-                  <Select value={editForm.status} onValueChange={(value) => handleSelectChange('status', value)}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="RECRUITING">Recruiting</SelectItem>
-                      <SelectItem value="ACTIVE">Active</SelectItem>
-                      <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                      <SelectItem value="COMPLETED">Completed</SelectItem>
-                      <SelectItem value="ON_HOLD">On Hold</SelectItem>
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Badge className={getStatusColor(project.status)}>{project.status?.replace('_', ' ')}</Badge>
-                )}
-                <Badge variant="outline">{project.category?.name || project.category}</Badge>
-              </div>
+    <div className="h-screen w-full bg-[#F8FAFC] text-slate-900 flex overflow-hidden font-sans">
+
+      {/* --- SLIM SIDEBAR NAVIGATION --- */}
+      <aside className="w-20 border-r border-slate-200 flex flex-col items-center py-6 gap-8 bg-white z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 cursor-pointer"
+          onClick={() => navigate('/dashboard')}
+        >
+          <Rocket className="text-white w-5 h-5" />
+        </motion.div>
+
+        <nav className="flex flex-col gap-4">
+          {[
+            { id: 'overview', icon: LayoutDashboard, label: 'Overview' },
+            { id: 'rooms', icon: Video, label: 'Rooms' },
+            { id: 'tasks', icon: ClipboardList, label: 'Board' },
+            { id: 'chat', icon: MessageSquare, label: 'Chat' },
+            { id: 'team', icon: Users, label: 'Team' },
+            ...(isMember ? [{ id: 'manage', icon: Settings, label: 'Settings' }] : [])
+          ].map((item) => (
+            <TooltipProvider key={item.id}>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => item.id === 'rooms' ? navigate(`/projects/${projectId}/rooms`) : setActiveTab(item.id)}
+                    className={`p-3 rounded-xl transition-all duration-200 relative ${activeTab === item.id
+                      ? 'bg-indigo-50 text-indigo-600 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                      }`}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    {activeTab === item.id && (
+                      <motion.div layoutId="sidebar-active" className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-indigo-600 rounded-r-full" />
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="bg-slate-900 text-white text-xs font-semibold">
+                  {item.label}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ))}
+        </nav>
+
+        <button onClick={() => navigate(-1)} className="mt-auto p-3 text-slate-400 hover:text-slate-900 transition-colors">
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+      </aside>
+
+      {/* --- MAIN AREA --- */}
+      <main className="flex-1 flex flex-col relative overflow-hidden">
+
+        {/* TOP BAR */}
+        <header className="h-16 border-b border-slate-200 px-8 flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-40">
+          <div className="flex items-center gap-4">
+            <h1 className="text-lg font-bold text-slate-900">{project.title}</h1>
+            <Badge variant="secondary" className="bg-slate-100 text-slate-600 font-medium px-2.5 py-0.5 rounded-full text-[10px] uppercase tracking-wider">
+              {project.status}
+            </Badge>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="flex -space-x-2 mr-2">
+              {[1, 2, 3].map((i) => (
+                <Avatar key={i} className="w-7 h-7 border-2 border-white ring-1 ring-slate-100 shadow-sm">
+                  <AvatarFallback className="text-[10px] bg-indigo-50 text-indigo-600 font-bold">
+                    {project.lead?.firstName?.[0]}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
             </div>
-            {/* --- ACTION BUTTONS --- */}
-            <div className="flex gap-2 flex-shrink-0">
-              <Button variant="outline" size="sm" onClick={() => navigate(`/projects/${projectId}/rooms`)}><Users className="w-4 h-4 mr-2" />Meeting Rooms</Button>
-              <Button variant="outline" size="sm" onClick={() => navigate(`/projects/${projectId}/invite`)}><UserPlus className="w-4 h-4 mr-2" />Invite</Button>
-              {isProjectLead && !isEditing && (
-                <>
-                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}><Edit3 className="w-4 h-4 mr-2" />Edit</Button>
-                </>
-              )}
-              {isProjectLead && isEditing && (
-                <>
-                  <Button variant="outline" size="sm" onClick={handleCancelEdit}>Cancel</Button>
-                  <Button size="sm" onClick={handleSaveChanges} disabled={loading}>
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="w-4 h-4 mr-2" />} Save
-                  </Button>
-                </>
-              )}
+            <Button
+              onClick={() => navigate(`/projects/${projectId}/invite`)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 h-9 text-xs font-bold shadow-sm"
+            >
+              Invite
+            </Button>
+          </div>
+        </header>
+
+        {/* CONTENT VIEWPORT */}
+        <div className="flex-1 overflow-y-auto p-8 no-scrollbar bg-slate-50/30">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, scale: 0.99 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.01 }}
+              transition={{ duration: 0.2 }}
+              className="h-full max-w-6xl mx-auto"
+            >
+              {activeTab === 'overview' && <OverviewTab project={project} />}
+              {activeTab === 'tasks' && <TaskBoard projectId={projectId} project={project} />}
+              {activeTab === 'chat' && <ChatSection projectId={projectId} />}
+              {activeTab === 'team' && <TeamSection projectId={projectId} project={project} />}
+              {activeTab === 'manage' && <SettingsTab project={project} projectId={projectId} isProjectLead={isProjectLead} />}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </main>
+
+      {/* --- RIGHT SIDEBAR: PROJECT INTEL --- */}
+      <aside className="w-80 border-l border-slate-200 bg-white p-8 hidden xl:flex flex-col gap-10">
+
+        <div className="space-y-6">
+          <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Project Stats</h4>
+          <Card className="p-5 border-slate-100 shadow-sm bg-gradient-to-br from-indigo-50/50 to-white">
+            <div className="flex items-end justify-between mb-4">
+              <span className="text-3xl font-bold text-slate-900">{project.currentTeamSize + 1}</span>
+              <span className="text-xs font-bold text-slate-400">/ {project.maxTeamSize} Capacity</span>
             </div>
+            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${((project.currentTeamSize + 1) / project.maxTeamSize) * 100}%` }}
+                className="h-full bg-indigo-500 rounded-full"
+              />
+            </div>
+          </Card>
+        </div>
+
+        <div className="space-y-4">
+          <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Resources</h4>
+          <div className="grid gap-2">
+            {[
+              { label: 'GitHub Repo', icon: Github, link: project.githubRepo },
+              { label: 'Live Preview', icon: Globe, link: project.demoUrl }
+            ]
+              .filter(res => res.link)
+              .map((res, i) => (
+                <a
+                  key={i} href={res.link} target="_blank" rel="noreferrer"
+                  className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-indigo-50 border border-slate-100 rounded-xl transition-all group"
+                >
+                  <div className="flex items-center gap-3">
+                    <res.icon size={16} className="text-slate-500 group-hover:text-indigo-600" />
+                    <span className="text-xs font-semibold text-slate-700">{res.label}</span>
+                  </div>
+                  <LinkIcon size={12} className="text-slate-300" />
+                </a>
+              ))}
           </div>
         </div>
 
-        <Tabs defaultValue="overview">
-          <TabsList className={`grid w-full ${isProjectLead ? 'grid-cols-5' : 'grid-cols-4'}`}><TabsTrigger value="overview">Overview</TabsTrigger><TabsTrigger value="tasks">Tasks</TabsTrigger><TabsTrigger value="team">Team</TabsTrigger><TabsTrigger value="chat">Chat</TabsTrigger>{isProjectLead && <TabsTrigger value="manage">Manage</TabsTrigger>}</TabsList>
-
-          {/* --- OVERVIEW TAB --- */}
-          <TabsContent value="overview" className="mt-6 space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-6">
-                <Card><CardHeader><CardTitle>Description</CardTitle></CardHeader><CardContent>{isEditing ? <Textarea id="description" value={editForm.description} onChange={handleFormChange} rows={5} /> : <p className="text-gray-700 leading-relaxed">{project.description}</p>}</CardContent></Card>
-                <Card><CardHeader><CardTitle>Problem Statement</CardTitle></CardHeader><CardContent>{isEditing ? <Textarea id="problemStatement" value={editForm.problemStatement} onChange={handleFormChange} rows={3} /> : <p className="text-gray-700">{project.problemStatement}</p>}</CardContent></Card>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card><CardHeader><CardTitle>Goals</CardTitle></CardHeader><CardContent>{isEditing ? <Textarea id="goals" value={editForm.goals} onChange={handleFormChange} rows={3} /> : <p className="text-gray-700">{project.goals}</p>}</CardContent></Card>
-                  <Card>
-                    <CardHeader><CardTitle>Objectives</CardTitle></CardHeader>
-                    <CardContent>
-                      {isEditing ? (
-                        <Textarea id="objectives" value={editForm.objectives} onChange={handleFormChange} rows={4} placeholder="Separate objectives with a comma" />
-                      ) : (
-                        project.objectives?.includes(',') ? (
-                          <ul className="space-y-2">
-                            {project.objectives.split(',').map((obj, index) => (
-                              <li key={index} className="flex items-center gap-2">
-                                <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                                <span className="text-gray-700">{obj.trim()}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-gray-700">{project.objectives}</p>
-                        )
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-              <div className="lg:col-span-1 space-y-6">
-                <Card><CardHeader><CardTitle>Team Size</CardTitle></CardHeader><CardContent>{isEditing ? <Input id="maxTeamSize" type="number" value={editForm.maxTeamSize} onChange={handleFormChange} /> : <p className="text-2xl font-bold">{project.currentTeamSize + 1} / {project.maxTeamSize}</p>}</CardContent></Card>
-                <Card><CardHeader><CardTitle>Tech Stack</CardTitle></CardHeader><CardContent>{isEditing ? <Input id="techStackList" placeholder="Comma-separated" value={editForm.techStackList} onChange={handleFormChange} /> : <div className="flex flex-wrap gap-2">{(project.techStackList || []).map(tech => <Badge key={tech} variant="secondary">{tech}</Badge>)}</div>}</CardContent></Card>
-                <Card><CardHeader><CardTitle>Required Skills</CardTitle></CardHeader><CardContent>{isEditing ? <Input id="projectSkills" placeholder="Comma-separated" value={editForm.projectSkills} onChange={handleFormChange} /> : <div className="flex flex-wrap gap-2">{(project.requiredSkills || project.projectSkills || []).map((ps, idx) => <Badge key={ps.id || idx} variant="secondary">{ps.skill.name}</Badge>)}</div>}</CardContent></Card>
-                <Card><CardHeader><CardTitle>Links</CardTitle></CardHeader><CardContent className="space-y-2">{isEditing ? <><Input id="githubRepo" placeholder="GitHub URL" value={editForm.githubRepo} onChange={handleFormChange} /><Input id="demoUrl" placeholder="Demo URL" value={editForm.demoUrl} onChange={handleFormChange} /></> : <>{project.githubRepo && <a href={project.githubRepo} target="_blank" rel="noopener noreferrer">GitHub</a>}{project.demoUrl && <a href={project.demoUrl} target="_blank" rel="noopener noreferrer">Live Demo</a>}</>}</CardContent></Card>
-                {/* {project.lead && <Card><CardHeader><CardTitle>Project Lead</CardTitle></CardHeader><CardContent><h3>{project.lead.firstName} {project.lead.lastName}</h3><p className="text-sm text-gray-500">{project.lead.branch}</p></CardContent></Card>} */}
-              </div>
+        <div className="mt-auto p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+          <div className="flex gap-3">
+            <Video size={18} className="text-indigo-500 shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-indigo-900 mb-1">Meeting Rooms</p>
+              <p className="text-[11px] text-indigo-700 leading-snug">
+                {project.meetingRooms?.length > 0
+                  ? `${project.meetingRooms.length} active rooms for collaboration.`
+                  : "No active meeting rooms."}
+              </p>
             </div>
-          </TabsContent>
-
-          <TabsContent value="tasks"><TaskManagement projectId={projectId} isProjectLead={isProjectLead} project={project} /></TabsContent>
-          <TabsContent value="team"><MemberManagement projectId={projectId} isProjectLead={isProjectLead} project={project} /></TabsContent>
-          <TabsContent value="chat"><ProjectChat projectId={projectId} /></TabsContent>
-          {isProjectLead && (<TabsContent value="manage"><ProjectManage project={project} onRefresh={loadProjectData} /></TabsContent>)}
-        </Tabs>
-      </div>
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }
+
+const OverviewTab = ({ project }) => (
+  <div className="space-y-8">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <Card className="col-span-2 p-10 border-slate-200/60 shadow-sm bg-white rounded-[24px]">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <Layers className="text-indigo-600" size={20} />
+            <h3 className="text-lg font-bold text-slate-900">Project Mission</h3>
+          </div>
+          {project.category && (
+            <Badge variant="outline" className="text-slate-500 border-slate-200 bg-slate-50">
+              {project.category.name}
+            </Badge>
+          )}
+        </div>
+        <p className="text-slate-600 text-base leading-relaxed">
+          {project.description}
+        </p>
+
+        <div className="mt-8 pt-6 border-t border-slate-100 flex flex-wrap gap-6 text-xs text-slate-500 font-medium">
+          <div className="flex items-center gap-2">
+            <Calendar size={14} className="text-slate-400" />
+            <span>Started {new Date(project.createdAt).toLocaleDateString()}</span>
+          </div>
+          {project.updatedAt && (
+            <div className="flex items-center gap-2">
+              <Tag size={14} className="text-slate-400" />
+              <span>Updated {new Date(project.updatedAt).toLocaleDateString()}</span>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <div className="space-y-6">
+        <Card className="p-8 border-slate-200/60 shadow-sm bg-white rounded-[24px]">
+          <h3 className="text-sm font-bold text-slate-900 mb-6 uppercase tracking-widest">Key Goals</h3>
+          {project.goals ? (
+            <div className="space-y-5">
+              {project.goals.split(',').map((goal, i) => (
+                <div key={i} className="flex gap-3 items-start group">
+                  <div className="w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                    <CheckCircle2 size={12} />
+                  </div>
+                  <span className="text-sm font-medium text-slate-600 leading-tight">{goal.trim()}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-400 italic">No goals defined yet.</p>
+          )}
+        </Card>
+      </div>
+    </div>
+
+    <Card className="p-10 border-slate-200/60 shadow-sm bg-white rounded-[24px]">
+      <div className="flex items-center gap-3 mb-6">
+        <Sparkles className="text-indigo-600" size={20} />
+        <h3 className="text-lg font-bold text-slate-900">Tech Stack & Required Skills</h3>
+      </div>
+      <div className="flex flex-wrap gap-3">
+        {project.projectSkills?.map((ps, i) => (
+          <div key={i} className="flex items-center px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl gap-2 hover:bg-slate-100 transition-colors">
+            <div className={`w-2 h-2 rounded-full ${ps.required ? 'bg-indigo-500' : 'bg-slate-300'}`} />
+            <span className="text-sm font-semibold text-slate-700">{ps.skill?.name || "Unknown Skill"}</span>
+            {ps.skill?.category && (
+              <span className="text-[10px] text-slate-400 border-l border-slate-200 pl-2 ml-1 uppercase font-bold tracking-wider">
+                {ps.skill.category}
+              </span>
+            )}
+          </div>
+        ))}
+        {(!project.projectSkills || project.projectSkills.length === 0) && (
+          <p className="text-slate-400 italic">No specific skills listed.</p>
+        )}
+      </div>
+    </Card>
+
+    <Card className="p-10 border-slate-200/60 shadow-sm bg-indigo-600 rounded-[24px] text-white">
+      <div className="flex items-center gap-3 mb-4 opacity-80">
+        <Flag size={18} />
+        <h3 className="text-xs font-bold uppercase tracking-widest">The Problem Statement</h3>
+      </div>
+      <p className="text-xl font-medium leading-relaxed italic opacity-100">
+        "{project.problemStatement || "No problem statement defined."}"
+      </p>
+    </Card>
+  </div>
+);
+
+const TaskBoard = ({ projectId, project }) => {
+  const [tasks, setTasks] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'MEDIUM', status: 'TODO', assignedToId: '' });
+
+  const fetchData = async () => {
+    try {
+      const [tasksRes, membersRes] = await Promise.all([
+        projectService.getProjectTasks(projectId),
+        projectService.getProjectMembers(projectId)
+      ]);
+      setTasks(tasksRes || []);
+      setMembers(membersRes.data?.content || membersRes.data || []);
+    } catch (e) { console.error(e); }
+  };
+
+  useEffect(() => { fetchData(); }, [projectId]);
+
+  const handleCreateTask = async () => {
+    if (!newTask.title) return;
+    await projectService.createTask(projectId, newTask);
+    setIsDialogOpen(false);
+    setNewTask({ title: '', description: '', priority: 'MEDIUM', status: 'TODO', assignedToId: '' });
+    fetchData();
+  };
+
+  return (
+    <div className="flex flex-col gap-8 h-full">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Task Pipeline</h2>
+          <p className="text-sm text-slate-500">Manage your sprint progress and team tasks.</p>
+        </div>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-10 px-6 font-bold shadow-md shadow-indigo-100">
+              <Plus className="w-4 h-4 mr-2" /> Add Task
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="bg-white rounded-2xl border-none shadow-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold">New Task</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-1">
+                <Label className="text-xs text-slate-500 uppercase font-bold">Task Title</Label>
+                <Input value={newTask.title} onChange={e => setNewTask({ ...newTask, title: e.target.value })} className="border-slate-200 rounded-lg focus:ring-indigo-500" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-slate-500 uppercase font-bold">Description</Label>
+                <Textarea value={newTask.description} onChange={e => setNewTask({ ...newTask, description: e.target.value })} className="border-slate-200 rounded-lg focus:ring-indigo-500" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Select onValueChange={v => setNewTask({ ...newTask, priority: v })}>
+                  <SelectTrigger className="border-slate-200">Priority</SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="LOW">Low</SelectItem>
+                    <SelectItem value="MEDIUM">Medium</SelectItem>
+                    <SelectItem value="HIGH">High</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select onValueChange={v => setNewTask({ ...newTask, assignedToId: v })}>
+                  <SelectTrigger className="border-slate-200">Assigned To</SelectTrigger>
+                  <SelectContent className="bg-white">
+                    {members.map(m => <SelectItem key={m.user.id} value={m.user.id}>{m.user.firstName}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={handleCreateTask} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold h-11 rounded-xl">Create Task</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid grid-cols-3 gap-6 flex-1">
+        {['TODO', 'IN_PROGRESS', 'COMPLETED'].map(status => (
+          <div key={status} className="flex flex-col gap-4">
+            <div className="flex items-center gap-2 px-1">
+              <div className={`w-1.5 h-1.5 rounded-full ${status === 'COMPLETED' ? 'bg-emerald-500' : status === 'IN_PROGRESS' ? 'bg-indigo-500' : 'bg-slate-300'}`} />
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">{status.replace('_', ' ')}</span>
+            </div>
+
+            <div className="space-y-4">
+              {tasks.filter(t => t.status === status).map(task => (
+                <Card key={task.id} className="p-5 border-slate-200/60 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer group bg-white rounded-2xl">
+                  <div className="flex justify-between items-start mb-3">
+                    <Badge className={`px-2 py-0 text-[9px] font-bold border-none ${task.priority === 'HIGH' ? 'bg-rose-50 text-rose-600' :
+                      task.priority === 'MEDIUM' ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-600'
+                      }`}>
+                      {task.priority}
+                    </Badge>
+                    <MoreHorizontal size={14} className="text-slate-300 group-hover:text-slate-600" />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-800 mb-2 leading-snug">{task.title}</h4>
+                  <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed">{task.description}</p>
+
+                  {task.assignedToName && (
+                    <div className="flex items-center gap-2 pt-3 border-t border-slate-50">
+                      <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-700">
+                        {task.assignedToName[0]}
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400">{task.assignedToName}</span>
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const ChatSection = ({ projectId }) => {
+  const { userProfile } = useAuth();
+  const [messages, setMessages] = useState([]);
+  const [msg, setMsg] = useState("");
+  const scrollRef = useRef(null);
+
+  const fetchMessages = async () => {
+    try {
+      const res = await chatService.getProjectMessages(projectId, 0, 50);
+      setMessages((res.data?.content || res.data || []).reverse());
+    } catch (e) { console.error(e); }
+  };
+
+  useEffect(() => {
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 4000);
+    return () => clearInterval(interval);
+  }, [projectId]);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!msg.trim()) return;
+    try {
+      await chatService.sendMessage(projectId, msg);
+      setMsg("");
+      fetchMessages();
+    } catch (e) { console.error(e); }
+  };
+
+  return (
+    <div className="h-full flex flex-col bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 space-y-6 no-scrollbar bg-slate-50/20">
+        {messages.map((m) => {
+          const isMe = m.sender.id === userProfile?.id;
+          return (
+            <div key={m.id} className={`flex items-start gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
+              <Avatar className="w-8 h-8 rounded-lg shadow-sm">
+                <AvatarFallback className="bg-white text-indigo-600 text-[10px] font-bold">{m.sender.firstName?.[0]}</AvatarFallback>
+              </Avatar>
+              <div className={`max-w-[65%]`}>
+                {!isMe && <p className="text-[10px] font-bold text-slate-400 mb-1 ml-1">{m.sender.firstName}</p>}
+                <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${isMe
+                  ? 'bg-indigo-600 text-white rounded-tr-none'
+                  : 'bg-white text-slate-700 border border-slate-100 rounded-tl-none'
+                  }`}>
+                  {m.content}
+                </div>
+                <p className={`text-[9px] text-slate-400 mt-1 ${isMe ? 'text-right' : 'text-left'}`}>
+                  {new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="p-6 bg-white border-t border-slate-100">
+        <div className="flex items-center gap-3 bg-slate-50 p-1.5 pl-5 rounded-2xl border border-slate-200">
+          <input
+            type="text"
+            placeholder="Type a message..."
+            className="flex-1 bg-transparent border-none h-11 text-sm outline-none text-slate-900"
+            value={msg}
+            onChange={(e) => setMsg(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+          />
+          <Button
+            onClick={handleSend}
+            disabled={!msg.trim()}
+            className="h-11 w-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100 p-0 transition-all"
+          >
+            <Send size={18} className="text-white" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const TeamSection = ({ projectId, project }) => {
+  const { userProfile } = useAuth();
+  const [members, setMembers] = useState([]);
+
+  useEffect(() => {
+    const fetch = async () => {
+      const res = await projectService.getProjectMembers(projectId);
+      setMembers(res.data?.content || res.data || []);
+    };
+    fetch();
+  }, [projectId]);
+
+  const displayedMembers = React.useMemo(() => {
+    const leadId = project?.lead?.id;
+    const otherMembers = members.filter(m => String(m.user.id) !== String(leadId));
+
+    if (project?.lead) {
+      return [
+        {
+          id: 'lead',
+          user: project.lead,
+          role: 'Team Lead'
+        },
+        ...otherMembers
+      ];
+    }
+    return otherMembers;
+  }, [members, project]);
+
+  return (
+    <div className="grid grid-cols-4 gap-6">
+      {displayedMembers.map(member => (
+        <Card key={member.id} className="p-6 bg-white border-slate-200 shadow-sm rounded-2xl flex items-center justify-between hover:border-indigo-300 transition-all">
+          <div className="flex items-center gap-4">
+            <Avatar className="h-12 w-12 rounded-xl shadow-sm border border-slate-100">
+              <AvatarImage src={member.user.profilePictureUrl} />
+              <AvatarFallback className="bg-slate-50 text-indigo-600 font-bold">{member.user.firstName?.[0]}</AvatarFallback>
+            </Avatar>
+            <div>
+              <h4 className="font-bold text-slate-900 text-sm leading-none">{member.user.firstName} {member.user.lastName}</h4>
+              <Badge className="bg-slate-50 text-slate-500 text-[9px] uppercase tracking-widest mt-2 border-none">
+                {member.role || 'Member'}
+              </Badge>
+            </div>
+          </div>
+          <button className="text-slate-300 hover:text-slate-600 p-2">
+            <MoreVertical size={16} />
+          </button>
+        </Card>
+      ))}
+    </div>
+  );
+};
+
+const SettingsTab = ({ project, projectId, isProjectLead }) => {
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    ...project,
+    githubRepo: project.githubRepo || '',
+    demoUrl: project.demoUrl || ''
+  });
+
+  const handleUpdate = async () => {
+    await projectService.updateProject(projectId, formData);
+    window.location.reload();
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm("Delete this project?")) {
+      await projectService.deleteProject(projectId);
+      navigate('/dashboard');
+    }
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-8">
+      <Card className="bg-white border-slate-200 shadow-sm p-10 rounded-[32px]">
+        <h3 className="text-xl font-bold text-slate-900 mb-8">General Settings</h3>
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Label className="text-xs font-bold text-slate-500 uppercase">Project Title</Label>
+            <Input value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} className="border-slate-200 h-12 rounded-xl focus:ring-indigo-500" />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs font-bold text-slate-500 uppercase">Description</Label>
+            <Textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="border-slate-200 rounded-xl min-h-[120px] focus:ring-indigo-500" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-6 pt-2">
+            <div className="space-y-2">
+              <Label className="text-xs font-bold text-slate-500 uppercase">GitHub Repository</Label>
+              <div className="relative">
+                <Github className="absolute left-3 top-3 text-slate-400" size={16} />
+                <Input
+                  value={formData.githubRepo}
+                  onChange={e => setFormData({ ...formData, githubRepo: e.target.value })}
+                  className="pl-10 border-slate-200 h-11 rounded-xl focus:ring-indigo-500"
+                  placeholder="https://github.com/..."
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-bold text-slate-500 uppercase">Live Preview URL</Label>
+              <div className="relative">
+                <Globe className="absolute left-3 top-3 text-slate-400" size={16} />
+                <Input
+                  value={formData.demoUrl}
+                  onChange={e => setFormData({ ...formData, demoUrl: e.target.value })}
+                  className="pl-10 border-slate-200 h-11 rounded-xl focus:ring-indigo-500"
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <Button onClick={handleUpdate} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-8 h-12 font-bold shadow-lg shadow-indigo-100">
+              Save Changes
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {isProjectLead && (
+        <Card className="bg-rose-50/50 border-rose-100 p-10 rounded-[32px] flex items-center justify-between">
+          <div>
+            <h4 className="text-lg font-bold text-rose-900">Danger Zone</h4>
+            <p className="text-sm text-rose-700/70">Permanently delete this project and all data.</p>
+          </div>
+          <Button onClick={handleDelete} variant="destructive" className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl px-8 h-12 font-bold">
+            Delete Project
+          </Button>
+        </Card>
+      )}
+    </div>
+  );
+};

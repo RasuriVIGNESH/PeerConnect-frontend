@@ -1,34 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
+
+// UI Components
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+
+// Icons
 import {
-  Search,
-  Users,
-  UserPlus,
-  Eye,
-  Calendar,
-  Loader2,
-  Target,
-  CheckCircle2,
-  Send,
-  Briefcase,
-  TrendingUp,
-  Filter,
-  X
+  Search, Users, UserPlus, Eye, Calendar, Loader2, Target, CheckCircle2,
+  Send, Briefcase, TrendingUp, Filter, X, Sparkles, MapPin, Rocket,
+  ChevronRight, Bookmark, Globe, Layers, LayoutGrid
 } from 'lucide-react';
 
+// Services
 import projectService from '../../services/projectService';
-import skillsService from '../../services/skillsService';
 import { joinRequestService } from '../../services/JoinRequestService';
 
 export default function ProjectDiscovery() {
@@ -46,424 +40,305 @@ export default function ProjectDiscovery() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [filterByCollege, setFilterByCollege] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('All');
 
   useEffect(() => {
-    const loadAllData = async () => {
+    const loadData = async () => {
       setLoading(true);
-      setError(null);
       try {
+        let projectsData = [];
         if (filterByCollege && currentUser.collegeId) {
-          const collegeProjects = await projectService.getProjectsByCollege(currentUser.collegeId);
-          setProjects(collegeProjects.data || []);
+          const res = await projectService.getProjectsByCollege(currentUser.collegeId);
+          projectsData = res.data || [];
         } else {
-          await loadProjectsData();
+          const res = await projectService.discoverProjects(0, 50);
+          projectsData = res.content || [];
         }
-        await loadSentRequests();
-      } catch (err) {
-        console.error("Failed to load initial data:", err);
-        setError("Could not load discovery data. Please try again.");
-      } finally {
-        setLoading(false);
-      }
+        setProjects(projectsData.map(p => ({
+          ...p,
+          requiredSkills: (p.requiredSkills || []).map(s => s.skill?.name).filter(Boolean)
+        })));
+
+        // Fetch categories
+        const categoriesData = await projectService.getProjectCategories();
+        setCategories(categoriesData || []);
+
+        const reqs = await joinRequestService.getMyJoinRequests();
+        setSentRequests(new Set((reqs || []).map(r => r.project?.id).filter(Boolean)));
+      } catch (err) { setError("Failed to sync."); }
+      finally { setLoading(false); }
     };
-    if (currentUser) {
-      loadAllData();
-    }
+    loadData();
   }, [currentUser, filterByCollege]);
 
   useEffect(() => {
-    applyFilters();
-  }, [projects, searchTerm]);
+    const term = searchTerm.toLowerCase();
+    setFilteredProjects(projects.filter(p => {
+      const matchesSearch = p.title.toLowerCase().includes(term) ||
+        p.description?.toLowerCase().includes(term) ||
+        p.requiredSkills?.some(s => s.toLowerCase().includes(term));
 
-  async function loadSentRequests() {
-    try {
-      const response = await joinRequestService.getMyJoinRequests();
-      const sentProjectIds = new Set((response || []).map(req => req.project?.id).filter(Boolean));
-      setSentRequests(sentProjectIds);
-    } catch (error) {
-      console.error("Could not load user's sent requests:", error);
-    }
-  }
+      const matchesCategory = selectedCategory === 'All' || p.categoryName === selectedCategory;
 
-  const handleJoinRequest = async () => {
-    if (!selectedProject) return;
-    setIsSubmitting(true);
-    try {
-      await joinRequestService.sendJoinRequest(selectedProject.id, joinRequestMessage);
-      setSentRequests(prev => new Set(prev).add(selectedProject.id));
-      setIsModalOpen(false);
-      setJoinRequestMessage('');
-    } catch (error) {
-      console.error('Failed to send join request:', error);
-      alert(`Error: ${error.message || 'Could not send join request.'}`);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  async function loadProjectsData() {
-    const response = await projectService.discoverProjects(0, 50);
-    const projectsData = response.content || [];
-    const processedProjects = projectsData.map(project => ({
-      ...project,
-      requiredSkills: (project.requiredSkills || [])
-        .map(skillObj => skillObj.skill?.name)
-        .filter(Boolean) || [],
+      return matchesSearch && matchesCategory;
     }));
-    setProjects(processedProjects);
-  }
+  }, [projects, searchTerm, selectedCategory]);
 
-  function applyFilters() {
-    let filtered = [...projects];
-    if (searchTerm) {
-      const lowercasedTerm = searchTerm.toLowerCase();
-      filtered = filtered.filter(p =>
-        p.title.toLowerCase().includes(lowercasedTerm) ||
-        (p.description && p.description.toLowerCase().includes(lowercasedTerm)) ||
-        (p.requiredSkills || []).some(s => s.toLowerCase().includes(lowercasedTerm))
-      );
-    }
-    setFilteredProjects(filtered);
-  }
-
-  const handleViewDetails = (project) => {
-    setSelectedProject(project);
-    setIsModalOpen(true);
-  };
-
-  const getStatusColor = (status) => {
-    const colors = {
-      'RECRUITING': 'bg-green-500/10 text-green-700 border-green-500/20',
-      'IN_PROGRESS': 'bg-blue-500/10 text-blue-700 border-blue-500/20',
-      'COMPLETED': 'bg-gray-500/10 text-gray-700 border-gray-500/20',
-      'ON_HOLD': 'bg-yellow-500/10 text-yellow-700 border-yellow-500/20'
-    };
-    return colors[status] || colors['RECRUITING'];
-  };
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[600px]">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <span className="text-muted-foreground text-lg">Discovering amazing projects...</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto px-4 py-12">
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="h-screen w-full flex items-center justify-center bg-white">
+      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+        className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full" />
+    </div>
+  );
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
-      {/* Header Section */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent mb-2">
-          Discover Projects
-        </h1>
-        <p className="text-muted-foreground text-lg">
-          Find exciting projects that match your skills and interests
-        </p>
-      </div>
+    <div className="min-h-screen bg-[#FDFDFD] flex flex-col">
 
-      {/* Search and Filters */}
-      <div className="mb-8 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by title, description, or skill..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-          {searchTerm && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 p-0"
-              onClick={() => setSearchTerm('')}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
+      {/* --- SLIM STICKY HEADER --- */}
+      <header className="sticky top-0 z-50 w-full h-16 bg-white/80 backdrop-blur-md border-b border-slate-100 px-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-sm">
-            {filteredProjects.length} {filteredProjects.length === 1 ? 'Project' : 'Projects'}
-          </Badge>
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="college-filter"
-              checked={filterByCollege}
-              onChange={(e) => setFilterByCollege(e.target.checked)}
-              className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-            />
-            <label htmlFor="college-filter" className="text-sm font-medium text-gray-700">
-              Projects from My College
-            </label>
+          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+            <Rocket size={16} className="text-white" />
           </div>
+          <span className="font-black text-slate-900 tracking-tighter text-lg">Projects</span>
         </div>
+
+        <div className="flex-1 max-w-md mx-8 relative hidden md:block">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+          <input
+            type="text"
+            placeholder="Search projects, skills, or teams..."
+            className="w-full bg-slate-50 border-none rounded-xl h-10 pl-10 pr-4 text-sm focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="rounded-full border-slate-100 text-slate-500 px-3 py-1 font-bold text-[10px]">
+            {filteredProjects.length} AVAILABLE
+          </Badge>
+        </div>
+      </header>
+
+      <div className="flex flex-1">
+
+        {/* --- LEFT FILTER SIDEBAR --- */}
+        <aside className="w-64 border-r border-slate-100 p-6 hidden lg:flex flex-col gap-8 sticky top-16 h-[calc(100vh-64px)] overflow-y-auto">
+          <div>
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Filters</h4>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100 group cursor-pointer transition-all">
+                <Label htmlFor="college-side" className="text-xs font-bold text-slate-700 cursor-pointer">Campus Only</Label>
+                <Switch id="college-side" checked={filterByCollege} onCheckedChange={setFilterByCollege} />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Categories</h4>
+            <div className="flex flex-col gap-2">
+              <Button
+                variant={selectedCategory === 'All' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setSelectedCategory('All')}
+                className={`justify-start text-xs font-bold ${selectedCategory === 'All' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+              >
+                All Categories
+              </Button>
+              {categories.map((cat) => (
+                <Button
+                  key={cat.id}
+                  variant={selectedCategory === cat.name ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setSelectedCategory(cat.name)}
+                  className={`justify-start text-xs font-bold ${selectedCategory === cat.name ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                >
+                  {cat.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Quick Stats</h4>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 text-slate-600">
+                <TrendingUp size={16} className="text-indigo-600" />
+                <span className="text-xs font-bold">Trending High</span>
+              </div>
+              <div className="flex items-center gap-3 text-slate-600">
+                <Sparkles size={16} className="text-amber-500" />
+                <span className="text-xs font-bold">New Initiatives</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-auto p-4 bg-indigo-50 rounded-3xl border border-indigo-100">
+            <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1">Join the community</p>
+            <p className="text-[10px] text-indigo-400 leading-relaxed">Collaborate with the best students across your campus.</p>
+          </div>
+        </aside>
+
+        {/* --- CONTENT FEED --- */}
+        <main className="flex-1 p-6 lg:p-10">
+
+          {/* Mobile Categories (Horizontal Scroll) */}
+          <div className="lg:hidden mb-6 overflow-x-auto pb-2 -mx-6 px-6 flex gap-2 no-scrollbar">
+            <Badge
+              onClick={() => setSelectedCategory('All')}
+              className={`cursor-pointer px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap ${selectedCategory === 'All' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'}`}
+            >
+              All
+            </Badge>
+            {categories.map((cat) => (
+              <Badge
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.name)}
+                className={`cursor-pointer px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap ${selectedCategory === cat.name ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'}`}
+              >
+                {cat.name}
+              </Badge>
+            ))}
+          </div>
+
+          <AnimatePresence>
+            {filteredProjects.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center">
+                <Briefcase size={48} className="text-slate-200 mb-4" />
+                <h3 className="text-lg font-bold text-slate-900">No projects found</h3>
+                <p className="text-slate-500 text-sm">Try broadening your search criteria.</p>
+              </div>
+            ) : (
+              <motion.div
+                layout
+                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
+              >
+                {filteredProjects.map((project) => (
+                  <motion.div
+                    layout
+                    key={project.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <Card className="group bg-white border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 hover:-translate-y-1 transition-all duration-300 rounded-[28px] overflow-hidden flex flex-col h-full">
+                      <CardContent className="p-6 flex flex-col h-full">
+                        <div className="flex items-center justify-between mb-4">
+                          <Badge className="bg-slate-50 text-slate-500 border-none font-bold text-[9px] uppercase tracking-widest px-2 py-0.5">
+                            {project.categoryName}
+                          </Badge>
+                          <div className="flex -space-x-1">
+                            {[...Array(3)].map((_, i) => (
+                              <div key={i} className="w-5 h-5 rounded-full bg-slate-100 border border-white" />
+                            ))}
+                          </div>
+                        </div>
+
+                        <h3 className="text-lg font-black text-slate-900 mb-2 group-hover:text-indigo-600 transition-colors">
+                          {project.title}
+                        </h3>
+                        <p className="text-slate-500 text-xs leading-relaxed line-clamp-2 mb-4">
+                          {project.description}
+                        </p>
+
+                        <div className="flex flex-wrap gap-1.5 mb-6">
+                          {project.requiredSkills?.slice(0, 3).map((s, idx) => (
+                            <span key={idx} className="text-[9px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-md">
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+
+                        <div className="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Avatar className="w-6 h-6 ring-2 ring-white">
+                              <AvatarImage src={project.lead?.profilePictureUrl} />
+                              <AvatarFallback className="text-[8px] bg-slate-900 text-white">L</AvatarFallback>
+                            </Avatar>
+                            <span className="text-[10px] font-bold text-slate-700">{project.lead?.firstName}</span>
+                          </div>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 rounded-lg px-3 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all"
+                            onClick={() => { setSelectedProject(project); setIsModalOpen(true); }}
+                          >
+                            Details <ChevronRight size={12} className="ml-1" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </main>
       </div>
 
-      {/* Projects Grid */}
-      {filteredProjects.length === 0 ? (
-        <div className="text-center py-20 bg-muted/30 rounded-lg border-2 border-dashed">
-          <Briefcase className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-          <p className="text-xl font-semibold text-foreground mb-2">No Projects Found</p>
-          <p className="text-muted-foreground">
-            {searchTerm ? 'Try adjusting your search terms' : 'Check back later for new projects!'}
-          </p>
-        </div>
-      ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProjects.map((project) => (
-            <Card key={project.id} className="group hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/20 flex flex-col">
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/50 via-primary to-primary/50 opacity-0 group-hover:opacity-100 transition-opacity" />
-
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <Badge className="bg-primary/10 text-primary border-primary/20">
-                    {project.categoryName}
-                  </Badge>
-                  <Badge className={`${getStatusColor(project.status)} border`}>
-                    {project.status.replace('_', ' ')}
-                  </Badge>
-                </div>
-                <CardTitle className="text-xl font-bold group-hover:text-primary transition-colors">
-                  {project.title}
-                </CardTitle>
-              </CardHeader>
-
-              <CardContent className="flex-1 space-y-4 pb-4">
-                <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
-                  {project.description}
-                </p>
-
-                {project.requiredSkills && project.requiredSkills.length > 0 && (
-                  <div>
-                    <div className="text-xs font-semibold text-muted-foreground mb-2">Required Skills</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {project.requiredSkills.slice(0, 4).map((skill, idx) => (
-                        <Badge key={idx} variant="secondary" className="text-xs bg-blue-500/10 text-blue-700 border-blue-500/20">
-                          {skill}
-                        </Badge>
-                      ))}
-                      {project.requiredSkills.length > 4 && (
-                        <Badge variant="secondary" className="text-xs">
-                          +{project.requiredSkills.length - 4}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-4 pt-2 border-t">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Users className="h-4 w-4" />
-                    <span className="font-medium">
-                      {project.currentTeamSize + 1}/{project.maxTeamSize}
-                    </span>
-                  </div>
-                  {project.lead && (
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        {project.lead.profilePictureUrl ? (
-                          <AvatarImage src={project.lead.profilePictureUrl} />
-                        ) : (
-                          <AvatarFallback className="text-xs">
-                            {project.lead.firstName?.[0]}{project.lead.lastName?.[0]}
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
-                      <span className="text-xs text-muted-foreground truncate">
-                        {project.lead.firstName} {project.lead.lastName}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-
-              <CardFooter className="flex gap-2 bg-muted/30 border-t p-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => handleViewDetails(project)}
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  Details
-                </Button>
-                <Button
-                  size="sm"
-                  className="flex-1"
-                  disabled={sentRequests.has(project.id)}
-                  onClick={() => handleViewDetails(project)}
-                >
-                  {sentRequests.has(project.id) ? (
-                    <>
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Requested
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Join
-                    </>
-                  )}
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Project Details Modal */}
+      {/* --- REFINED PROJECT MODAL --- */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl rounded-[32px] p-0 border-none overflow-hidden shadow-2xl">
           {selectedProject && (
-            <>
-              <DialogHeader>
-                <div className="flex items-start justify-between gap-4 mb-3">
-                  <div className="flex-1">
-                    <DialogTitle className="text-2xl font-bold mb-2">{selectedProject.title}</DialogTitle>
-                    <DialogDescription className="text-base">{selectedProject.description}</DialogDescription>
+            <div className="flex flex-col">
+              <div className="bg-slate-900 p-8 text-white">
+                <Badge className="bg-indigo-600 text-white border-none mb-3">{selectedProject.categoryName}</Badge>
+                <h2 className="text-3xl font-black mb-2">{selectedProject.title}</h2>
+                <p className="text-slate-400 text-sm leading-relaxed">{selectedProject.description}</p>
+              </div>
+
+              <div className="p-8 space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Team Vacancy</p>
+                    <p className="text-lg font-black text-slate-900">{selectedProject.currentTeamSize + 1} / {selectedProject.maxTeamSize}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Lead Architect</p>
+                    <p className="text-lg font-black text-slate-900">{selectedProject.lead?.firstName} {selectedProject.lead?.lastName}</p>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <Badge className="bg-primary/10 text-primary border-primary/20">
-                    {selectedProject.categoryName}
-                  </Badge>
-                  <Badge className={`${getStatusColor(selectedProject.status)} border`}>
-                    {selectedProject.status.replace('_', ' ')}
-                  </Badge>
+
+                <div className="space-y-3">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Required Skillset</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedProject.requiredSkills?.map((s, i) => (
+                      <Badge key={i} className="bg-white border-slate-200 text-slate-600 px-3 py-1 rounded-xl text-xs">{s}</Badge>
+                    ))}
+                  </div>
                 </div>
-              </DialogHeader>
-
-              <div className="space-y-5 py-4">
-                {selectedProject.goals && (
-                  <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg p-4 border border-primary/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Target className="h-5 w-5 text-primary" />
-                      <span className="font-semibold text-foreground">Goals</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{selectedProject.goals}</p>
-                  </div>
-                )}
-
-
-
-                {selectedProject.requiredSkills && selectedProject.requiredSkills.length > 0 && (
-                  <div>
-                    <div className="font-semibold text-foreground mb-2">Required Skills</div>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedProject.requiredSkills.map((skill, idx) => (
-                        <Badge key={idx} variant="secondary" className="bg-blue-500/10 text-blue-700 border-blue-500/20">
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-8 text-sm bg-muted/30 rounded-lg p-4 border">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <div className="text-xs text-muted-foreground">Team Size</div>
-                      <div className="font-semibold">{selectedProject.currentTeamSize + 1}/{selectedProject.maxTeamSize}</div>
-                    </div>
-                  </div>
-                  {selectedProject.createdAt && (
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <div className="text-xs text-muted-foreground">Created</div>
-                        <div className="font-semibold">
-                          {new Date(selectedProject.createdAt).toLocaleDateString()}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {selectedProject.lead && (
-                  <div className="bg-gradient-to-br from-muted/30 to-muted/50 rounded-lg p-4 border">
-                    <div className="font-semibold text-foreground mb-3">Project Lead</div>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-12 w-12 border-2 border-primary/20">
-                        {selectedProject.lead.profilePictureUrl ? (
-                          <AvatarImage src={selectedProject.lead.profilePictureUrl} />
-                        ) : (
-                          <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                            {selectedProject.lead.firstName?.[0]}{selectedProject.lead.lastName?.[0]}
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
-                      <div>
-                        <div className="font-semibold text-foreground">
-                          {selectedProject.lead.firstName} {selectedProject.lead.lastName}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {selectedProject.lead.branch}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Class of {selectedProject.lead.graduationYear}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {!sentRequests.has(selectedProject.id) && (
-                  <div>
-                    <label className="font-semibold text-foreground block mb-2">
-                      Message to Project Lead
-                      <span className="text-xs text-muted-foreground font-normal ml-2">(Optional)</span>
-                    </label>
-                    <Textarea
-                      placeholder="Tell the project lead why you'd be a great fit for this project..."
-                      value={joinRequestMessage}
-                      onChange={e => setJoinRequestMessage(e.target.value)}
-                      className="resize-none"
-                      rows={4}
-                    />
-                  </div>
+                  <Textarea
+                    placeholder="Why are you a good fit for this squad?"
+                    className="rounded-2xl border-slate-200 min-h-[100px] p-4 text-sm"
+                    value={joinRequestMessage}
+                    onChange={(e) => setJoinRequestMessage(e.target.value)}
+                  />
                 )}
               </div>
 
-              <DialogFooter className="gap-2">
-                <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-                  Close
+              <DialogFooter className="p-6 bg-slate-50 border-t border-slate-100">
+                <Button variant="ghost" onClick={() => setIsModalOpen(false)} className="rounded-xl font-bold text-slate-500">Close</Button>
+                <Button
+                  onClick={async () => {
+                    setIsSubmitting(true);
+                    try {
+                      await joinRequestService.sendJoinRequest(selectedProject.id, joinRequestMessage);
+                      setSentRequests(p => new Set(p).add(selectedProject.id));
+                      setIsModalOpen(false);
+                    } catch (e) { alert("Error sending request."); }
+                    finally { setIsSubmitting(false); }
+                  }}
+                  disabled={isSubmitting || sentRequests.has(selectedProject.id)}
+                  className="bg-indigo-600 rounded-xl px-8 h-12 font-black shadow-lg shadow-indigo-200"
+                >
+                  {sentRequests.has(selectedProject.id) ? 'Application Sent' : 'Request to Join'}
                 </Button>
-                {!sentRequests.has(selectedProject.id) ? (
-                  <Button onClick={handleJoinRequest} disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="h-4 w-4 mr-2" />
-                        Send Join Request
-                      </>
-                    )}
-                  </Button>
-                ) : (
-                  <Button disabled>
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    Request Sent
-                  </Button>
-                )}
               </DialogFooter>
-            </>
+            </div>
           )}
         </DialogContent>
       </Dialog>

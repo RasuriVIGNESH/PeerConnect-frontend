@@ -18,11 +18,9 @@ import SkillDiscovery from './components/discovery/SkillDiscovery';
 import MyProjects from './components/projects/MyProjects';
 import OAuth2RedirectHandler from './components/auth/OAuth2RedirectHandler';
 import { RequestProvider } from './contexts/RequestContext';
-import Connections from './components/profile/Connections';
 import RequestsPage from './components/requests/RequestsPage';
-import Skills from './components/profile/Skills';
-import MeetingRooms from './components/project/MeetingRooms';
 import MeetingRoomsPage from '../src/components/project/MeetingRoomsPage';
+import SkillMastery from './components/profile/SkillMastery';
 
 import { Toaster } from '@/components/ui/sonner';
 import './App.css';
@@ -137,18 +135,10 @@ function App() {
               />
 
               <Route
-                path="/connections"
-                element={
-                  <ProtectedRoute>
-                    <Connections />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
                 path="/skills"
                 element={
                   <ProtectedRoute>
-                    <Skills />
+                    <SkillMastery />
                   </ProtectedRoute>
                 }
               />

@@ -1,0 +1,22 @@
+id,name,description,badge_icon,badge_color,criteria_type,criteria_value
+1,First Steps,Complete your profile and add your first skill,🚀,blue,profile_completion,1
+2,Skill Collector,Add 5 or more skills to your profile,🎯,green,skills_added,5
+3,Team Player,Join your first project team,🤝,purple,projects_joined,1
+4,Project Leader,Create and lead your first project,👑,gold,projects_created,1
+5,Collaborator,Successfully complete a project with a team,✅,emerald,projects_completed,1
+6,Skill Master,Receive 10 or more skill endorsements,⭐,orange,skill_endorsements,10
+7,Mentor,Help 3 or more students by rating their skills,🎓,indigo,skill_ratings_given,3
+8,Networker,Connect with 10 or more students,🌐,cyan,connections_made,10
+9,Learning Enthusiast,Complete 5 learning resources,📚,pink,resources_completed,5
+10,Rising Star,Get featured in 3 or more project showcases,🌟,yellow,project_showcases,3
+11,Code Warrior,Complete 3 programming-focused projects,💻,red,programming_projects,3
+12,Design Guru,Complete 3 design-focused projects,🎨,violet,design_projects,3
+13,Data Scientist,Complete 3 data science projects,📊,teal,data_projects,3
+14,Mobile Expert,Complete 3 mobile development projects,📱,lime,mobile_projects,3
+15,Full Stack Hero,Complete projects covering both frontend and backend,🔧,slate,fullstack_projects,2
+16,Innovation Award,Create a project that receives 50+ likes,💡,amber,project_likes,50
+17,Community Builder,Invite 5 new students to the platform,👥,rose,referrals_made,5
+18,Consistent Contributor,Stay active for 30 consecutive days,📅,blue,active_days,30
+19,Problem Solver,Help resolve 10 project issues or questions,🔍,green,issues_resolved,10
+20,Platform Ambassador,Achieve all other badges,🏆,rainbow,all_badges,19
+

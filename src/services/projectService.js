@@ -2,21 +2,21 @@ import apiService from './api.js';
 
 class ProjectService {
   // ===== CORE PROJECT OPERATIONS =====
-  
+
   // Get all projects - matches ProjectController endpoint
   async getProjects(filters = {}) {
     try {
       const queryParams = new URLSearchParams();
-      
+
       // Match ProjectController parameters exactly
       if (filters.page !== undefined) queryParams.append('page', filters.page);
       if (filters.size !== undefined) queryParams.append('size', filters.size);
       if (filters.sortBy !== undefined) queryParams.append('sortBy', filters.sortBy);
       if (filters.sortDir !== undefined) queryParams.append('sortDir', filters.sortDir);
-      
+
       const queryString = queryParams.toString();
       const endpoint = queryString ? `/projects?${queryString}` : '/projects';
-      
+
       return await apiService.get(endpoint);
     } catch (error) {
       console.error('Failed to get projects:', error);
@@ -75,9 +75,9 @@ class ProjectService {
       if (!projectId) {
         throw new Error('Project ID is required');
       }
-       // Return only the response body
-    const response = await apiService.get(`/projects/${projectId}`);
-    return response.data;
+      // Return only the response body
+      const response = await apiService.get(`/projects/${projectId}`);
+      return response.data;
     } catch (error) {
       console.error(`Failed to get project ${projectId}:`, error);
       throw new Error(error.message || 'Failed to get project');
@@ -90,7 +90,7 @@ class ProjectService {
       if (!projectData.title || !projectData.description) {
         throw new Error('Project title and description are required');
       }
-      
+
       console.log('Creating project with data:', projectData);
       const response = await apiService.post('/projects', projectData);
       console.log('Project created successfully:', response);
@@ -150,7 +150,8 @@ class ProjectService {
   async getProjectCategories() {
     try {
       const response = await apiService.get('/project-categories');
-      return response.data; // Assuming the backend returns an array of categories
+      // Handle both { data: [...] } and [...] response formats
+      return Array.isArray(response) ? response : (response.data || []);
     } catch (error) {
       console.error('Failed to get project categories:', error);
       throw new Error(error.message || 'Failed to get project categories');
@@ -180,7 +181,7 @@ class ProjectService {
       if (!taskData.title) {
         throw new Error('Task title is required');
       }
-      
+
       return await apiService.post(`/projects/${projectId}/tasks`, taskData);
     } catch (error) {
       console.error(`Failed to create task for project ${projectId}:`, error);
@@ -194,7 +195,7 @@ class ProjectService {
       if (!projectId || !taskId) {
         throw new Error('Project ID and Task ID are required');
       }
-      
+
       return await apiService.put(`/projects/${projectId}/tasks/${taskId}`, updateData);
     } catch (error) {
       console.error(`Failed to update task ${taskId}:`, error);
@@ -208,7 +209,7 @@ class ProjectService {
       if (!projectId || !taskId) {
         throw new Error('Project ID and Task ID are required');
       }
-      
+
       // Use correct endpoint and request format from ProjectController
       return await apiService.put(`/projects/${projectId}/tasks/${taskId}/complete`, {
         completed: completed
@@ -225,7 +226,7 @@ class ProjectService {
       if (!projectId || !taskId) {
         throw new Error('Project ID and Task ID are required');
       }
-      
+
       return await apiService.delete(`/projects/${projectId}/tasks/${taskId}`);
     } catch (error) {
       console.error(`Failed to delete task ${taskId}:`, error);
@@ -241,7 +242,7 @@ class ProjectService {
       if (!projectId) {
         throw new Error('Project ID is required');
       }
-      
+
       return await apiService.get(`/projects/${projectId}/members`);
     } catch (error) {
       console.error(`Failed to get project members:`, error);
@@ -258,7 +259,7 @@ class ProjectService {
       if (!memberData.userId) {
         throw new Error('User ID is required');
       }
-      
+
       return await apiService.post(`/projects/${projectId}/members`, memberData);
     } catch (error) {
       console.error(`Failed to add member to project ${projectId}:`, error);
@@ -275,7 +276,7 @@ class ProjectService {
       if (!role) {
         throw new Error('Role is required');
       }
-      
+
       return await apiService.put(`/projects/${projectId}/members/${memberId}`, { role });
     } catch (error) {
       console.error(`Failed to update member role:`, error);
@@ -289,7 +290,7 @@ class ProjectService {
       if (!projectId || !memberId) {
         throw new Error('Project ID and Member ID are required');
       }
-      
+
       return await apiService.delete(`/projects/${projectId}/members/${memberId}`);
     } catch (error) {
       console.error(`Failed to remove member:`, error);
@@ -303,7 +304,7 @@ class ProjectService {
       if (!projectId) {
         throw new Error('Project ID is required');
       }
-      
+
       return await apiService.post(`/projects/${projectId}/leave`);
     } catch (error) {
       console.error(`Failed to leave project ${projectId}:`, error);
@@ -322,7 +323,7 @@ class ProjectService {
       if (!invitationData.invitedUserId) {
         throw new Error('Invited User ID is required for invitation');
       }
-      
+
       return await apiService.post(`/projects/${projectId}/invitations`, invitationData);
     } catch (error) {
       console.error(`Failed to send invitation:`, error);
@@ -336,7 +337,7 @@ class ProjectService {
       if (!projectId) {
         throw new Error('Project ID is required');
       }
-      
+
       return await apiService.get(`/projects/${projectId}/invitations`);
     } catch (error) {
       console.error(`Failed to get invitations:`, error);
@@ -360,7 +361,7 @@ class ProjectService {
       if (!invitationId) {
         throw new Error('Invitation ID is required');
       }
-      
+
       return await apiService.post(`/projects/invitations/${invitationId}/accept`);
     } catch (error) {
       console.error(`Failed to accept invitation:`, error);
@@ -374,7 +375,7 @@ class ProjectService {
       if (!invitationId) {
         throw new Error('Invitation ID is required');
       }
-      
+
       return await apiService.post(`/projects/invitations/${invitationId}/reject`);
     } catch (error) {
       console.error(`Failed to reject invitation:`, error);
@@ -388,7 +389,7 @@ class ProjectService {
   async searchProjects(searchParams = {}) {
     try {
       const queryParams = new URLSearchParams();
-      
+
       // Match ProjectController search parameters exactly
       if (searchParams.query) queryParams.append('query', searchParams.query);
       if (searchParams.category) queryParams.append('category', searchParams.category);
@@ -399,10 +400,10 @@ class ProjectService {
       if (searchParams.availableOnly !== undefined) queryParams.append('availableOnly', searchParams.availableOnly);
       if (searchParams.page !== undefined) queryParams.append('page', searchParams.page);
       if (searchParams.size !== undefined) queryParams.append('size', searchParams.size);
-      
+
       const queryString = queryParams.toString();
       const endpoint = queryString ? `/projects/search?${queryString}` : '/projects/search';
-      
+
       return await apiService.get(endpoint);
     } catch (error) {
       console.error('Failed to search projects:', error);
@@ -427,7 +428,7 @@ class ProjectService {
   async getAllUserProjects(page = 0, size = 6) {
     try {
       console.log('ProjectService: Getting all user projects...');
-      
+
       const [ownedResponse, joinedResponse] = await Promise.all([
         this.getMyProjects(page, size),
         this.getJoinedProjects(page, size)
@@ -435,7 +436,7 @@ class ProjectService {
 
       const ownedProjects = ownedResponse?.data?.content || [];
       const joinedProjects = joinedResponse?.data?.content || [];
-      
+
       // Combine and remove duplicates based on project ID
       const allProjects = [...ownedProjects];
       joinedProjects.forEach(project => {
@@ -469,7 +470,7 @@ class ProjectService {
       }
 
       console.log('ProjectService: Getting project summary for:', projectId);
-      
+
       const [project, tasks, members] = await Promise.all([
         this.getProject(projectId),
         this.getProjectTasks(projectId),
@@ -487,13 +488,13 @@ class ProjectService {
           completedTasks: tasksList.filter(task => task.completed).length,
           pendingTasks: tasksList.filter(task => !task.completed).length,
           totalMembers: membersList.length,
-          completionRate: tasksList.length > 0 
-            ? Math.round((tasksList.filter(task => task.completed).length / tasksList.length) * 100) 
+          completionRate: tasksList.length > 0
+            ? Math.round((tasksList.filter(task => task.completed).length / tasksList.length) * 100)
             : 0
         },
         recentActivity: {
-          lastTaskUpdate: tasksList.length > 0 
-            ? tasksList.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0] 
+          lastTaskUpdate: tasksList.length > 0
+            ? tasksList.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))[0]
             : null,
           memberCount: membersList.length
         }
@@ -521,7 +522,7 @@ class ProjectService {
       }
 
       console.log('ProjectService: Performing bulk task updates...');
-      
+
       const results = [];
       for (const update of taskUpdates) {
         try {
@@ -542,18 +543,18 @@ class ProjectService {
             default:
               throw new Error(`Unknown operation: ${update.operation}`);
           }
-          results.push({ 
-            taskId: update.taskId, 
-            operation: update.operation, 
-            success: true, 
-            result 
+          results.push({
+            taskId: update.taskId,
+            operation: update.operation,
+            success: true,
+            result
           });
         } catch (error) {
-          results.push({ 
-            taskId: update.taskId, 
-            operation: update.operation, 
-            success: false, 
-            error: error.message 
+          results.push({
+            taskId: update.taskId,
+            operation: update.operation,
+            success: false,
+            error: error.message
           });
         }
       }

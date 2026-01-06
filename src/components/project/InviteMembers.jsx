@@ -1,20 +1,34 @@
-// src/components/projects/InviteMembers.jsx
-
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Search, Users, UserPlus, Check, ArrowLeft, Loader2 } from 'lucide-react';
+import {
+  Search, Users, UserPlus, Check, ArrowLeft,
+  Loader2, Sparkles, MapPin, GraduationCap, Trophy
+} from 'lucide-react';
 import userService from '../../services/userService';
-import { projectService } from '../../services/projectService'; // Ensure this path is correct
+import { projectService } from '../../services/projectService';
+
+// --- Animation Variants ---
+const containerVar = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.08 } }
+};
+
+const itemVar = {
+  hidden: { y: 20, opacity: 0 },
+  visible: { y: 0, opacity: 1, transition: { type: 'spring', stiffness: 260, damping: 20 } }
+};
 
 export default function InviteMembers() {
   const { projectId } = useParams();
+  const navigate = useNavigate();
   const { userProfile } = useAuth();
 
   const [loading, setLoading] = useState(true);
@@ -22,208 +36,229 @@ export default function InviteMembers() {
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [invitedUserIds, setInvitedUserIds] = useState([]); // Track invited users
+  const [invitedUserIds, setInvitedUserIds] = useState([]);
 
   useEffect(() => {
     async function loadData() {
       try {
         setLoading(true);
-        setError(null);
-
-        // Fetch all discoverable users and current project members simultaneously
-        const [usersResponse, membersResponse] = await Promise.all([
+        const [usersRes, membersRes, projectRes] = await Promise.all([
           userService.discoverUsers(),
-          projectService.getProjectMembers(projectId)
+          projectService.getProjectMembers(projectId),
+          projectService.getProject(projectId)
         ]);
 
-        const allStudents = usersResponse?.data?.content || usersResponse?.data || [];
-        const currentMembers = membersResponse?.data || [];
-        const memberIds = new Set(currentMembers.map(member => member.user.id));
+        const allStudents = usersRes?.data?.content || usersRes?.data || [];
+        const currentMembers = membersRes?.data || [];
+        const memberIds = new Set(currentMembers.map(m => m.user.id));
 
-        // Also add the Lead to the set of users not to show
-        const projectDetails = await projectService.getProject(projectId);
-        if (projectDetails?.Lead?.id) {
-          memberIds.add(projectDetails.Lead.id);
-        } else if (projectDetails?.lead?.id) {
-          memberIds.add(projectDetails.lead.id);
-        }
+        const leadId = projectRes?.lead?.id || projectRes?.Lead?.id;
+        if (leadId) memberIds.add(leadId);
 
-        // Filter out the current user, the project Lead, and any existing members
-        const availableStudents = allStudents.filter(student => !memberIds.has(student.id));
+        const available = allStudents.filter(s => !memberIds.has(s.id));
+        const processed = available.map(s => ({
+          ...s,
+          displayName: s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim(),
+          studentSkills: s.skills?.map(sk => typeof sk === 'string' ? sk : sk.name) || [],
+          collegeName: s.college?.name || s.collage?.name
+        }));
 
-        const processedStudents = availableStudents.map(student => {
-          let imageUrl = null;
-          if (student.profilePictureUrl) {
-            imageUrl = student.profilePictureUrl;
-          } else if (student.profilePhoto) {
-            imageUrl = student.profilePhoto.startsWith('data:image') || student.profilePhoto.startsWith('http')
-              ? student.profilePhoto
-              : `data:image/png;base64,${student.profilePhoto}`;
-          }
-
-          return {
-            ...student,
-            displayName: student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim(),
-            profileImage: imageUrl,
-            studentSkills: student.skills?.map(s => s.name || s) || [],
-            collegeName: student.collage?.name || student.college?.name
-          };
-        });
-
-        setStudents(processedStudents);
-        setFilteredStudents(processedStudents);
-
+        setStudents(processed);
+        setFilteredStudents(processed);
       } catch (err) {
-        console.error('Error loading data for invitations:', err);
-        setError('Failed to load students. Please try again.');
+        setError('Failed to fetch talent pool.');
       } finally {
         setLoading(false);
       }
     }
-
-    if (projectId) {
-      loadData();
-    }
-  }, [projectId, userProfile]);
+    loadData();
+  }, [projectId]);
 
   useEffect(() => {
-    let filtered = [...students];
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = students.filter(student =>
-        (student.displayName || '').toLowerCase().includes(term) ||
-        student.studentSkills.some(skill => skill.toLowerCase().includes(term))
-      );
-    }
-    setFilteredStudents(filtered);
+    const term = searchTerm.toLowerCase();
+    setFilteredStudents(students.filter(s =>
+      s.displayName.toLowerCase().includes(term) ||
+      s.studentSkills.some(skill => skill.toLowerCase().includes(term))
+    ));
   }, [searchTerm, students]);
 
   const handleInvite = async (student) => {
     try {
-      const invitationData = {
+      await projectService.sendInvitation(projectId, {
         invitedUserId: student.id,
-        role: 'MEMBER', // 👈 Add this line
-        message: `You are invited to join the project!` // You can also include a message
-      };
-
-      await projectService.sendInvitation(projectId, invitationData);
-
-      // Add studentId to the invited list to update the UI
+        role: 'MEMBER',
+        message: `Join our team for this amazing project!`
+      });
       setInvitedUserIds(prev => [...prev, student.id]);
-      alert(`Invitation sent to ${student.displayName}!`);
-
     } catch (err) {
-      console.error('Failed to send invitation:', err);
-      alert(`Error: ${err.message || 'Could not send invitation.'}`);
+      alert("Invitation failed to send.");
     }
   };
 
-  if (loading) {
-    return (
-      <div className="container mx-auto p-6 text-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto" />
-        <p className="mt-2 text-muted-foreground">Loading students to invite...</p>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-[#F8FAFC]">
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+        className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full mb-4"
+      />
+      <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">Scanning Campus Talent...</p>
+    </div>
+  );
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <Link to={`/projects/${projectId}`} className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4">
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Project
-      </Link>
+    <div className="min-h-screen bg-[#F8FAFC] pb-20">
 
-      <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Users className="h-8 w-8 text-blue-600" />
-          Invite Members
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Search for students and send them an invitation to join your project.
-        </p>
-      </div>
-
-      {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
-
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-        <Input
-          placeholder="Search by name or skills..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-
-      {filteredStudents.length > 0 ? (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredStudents.map(student => (
-            <Card key={student.id} className="flex flex-col">
-              <CardHeader>
-                <div className="flex items-center space-x-3">
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={student.profileImage} />
-                    <AvatarFallback>
-                      {(student.displayName || 'U').split(' ').map(n => n[0]).join('').toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <CardTitle className="text-lg">{student.displayName}</CardTitle>
-                    <CardDescription>{student.branch || 'No Branch'}</CardDescription>
-                    {student.collegeName && (
-                      <CardDescription>{student.collegeName}</CardDescription>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="flex-grow space-y-3">
-                <p className="text-sm text-muted-foreground line-clamp-2 min-h-[40px]">
-                  {student.bio || 'No bio available.'}
-                </p>
-                {student.studentSkills.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {student.studentSkills.slice(0, 4).map((skill, index) => (
-                      <Badge key={index} variant="outline" className="text-xs">{skill}</Badge>
-                    ))}
-                    {student.studentSkills.length > 4 && (
-                      <Badge variant="outline" className="text-xs">+{student.studentSkills.length - 4} more</Badge>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-              <div className="p-4 pt-0">
-                <Button
-                  size="sm"
-                  className="w-full"
-                  onClick={() => handleInvite(student)}
-                  disabled={invitedUserIds.includes(student.id)}
-                >
-                  {invitedUserIds.includes(student.id) ? (
-                    <>
-                      <Check className="h-4 w-4 mr-2" />
-                      Invited
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Invite
-                    </>
-                  )}
-                </Button>
-              </div>
-            </Card>
-          ))}
+      {/* --- STICKY TOP BAR --- */}
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 h-20 px-8 flex items-center justify-between">
+        <div className="flex items-center gap-6">
+          <Button
+            variant="ghost"
+            onClick={() => navigate(`/projects/${projectId}`)}
+            className="rounded-2xl hover:bg-slate-100"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" /> Back
+          </Button>
+          <div className="h-6 w-[1px] bg-slate-200" />
+          <div>
+            <h1 className="text-lg font-black text-slate-900 tracking-tighter uppercase">Recruitment Center</h1>
+            <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Finding the best matches</p>
+          </div>
         </div>
-      ) : (
-        <Card>
-          <CardContent className="text-center py-12">
-            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold">No students found</h3>
-            <p className="text-muted-foreground">All eligible students are already on your team or none matched your search.</p>
-          </CardContent>
-        </Card>
-      )}
+
+        <div className="flex items-center gap-3">
+          <Badge className="bg-slate-100 text-slate-500 border-none font-bold px-3 py-1">
+            {invitedUserIds.length} Invited
+          </Badge>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-8 py-12">
+
+        {/* --- SEARCH SECTION --- */}
+        <div className="mb-12">
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+            <h2 className="text-4xl font-black text-slate-900 mb-2">Build your <span className="text-indigo-600">Dream Team</span>.</h2>
+            <p className="text-slate-500 font-medium">Connect with skilled students and invite them to contribute to your vision.</p>
+          </motion.div>
+
+          <div className="relative group max-w-2xl">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors w-5 h-5" />
+            <Input
+              placeholder="Search by name, branch, or specific skills (e.g. React, Python)..."
+              className="h-16 pl-12 rounded-[24px] bg-white border-none shadow-xl shadow-slate-200/50 text-lg outline-none focus:ring-2 focus:ring-indigo-500/20"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {error && <Alert variant="destructive" className="mb-8 rounded-2xl"><AlertDescription>{error}</AlertDescription></Alert>}
+
+        {/* --- TALENT GRID --- */}
+        <AnimatePresence>
+          {filteredStudents.length > 0 ? (
+            <motion.div
+              variants={containerVar}
+              initial="hidden"
+              animate="visible"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+            >
+              {filteredStudents.map(student => {
+                const isInvited = invitedUserIds.includes(student.id);
+                return (
+                  <motion.div key={student.id} variants={itemVar}>
+                    <Card className="group border-none shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 rounded-[40px] overflow-hidden bg-white p-8 flex flex-col h-full relative">
+
+                      {/* Decorative Element */}
+                      <div className="absolute top-0 right-0 p-8 text-slate-50 group-hover:text-indigo-50 transition-colors">
+                        <Trophy size={60} />
+                      </div>
+
+                      <div className="relative z-10 flex flex-col h-full">
+                        <div className="flex items-center gap-4 mb-6">
+                          <div className="relative">
+                            <Avatar className="h-16 w-16 ring-4 ring-slate-50 group-hover:ring-indigo-100 transition-all duration-500">
+                              <AvatarImage src={student.profilePictureUrl || student.profileImage} />
+                              <AvatarFallback className="bg-indigo-600 text-white font-black">
+                                {student.displayName?.[0]}
+                              </AvatarFallback>
+                            </Avatar>
+                            {student.studentSkills.length > 5 && (
+                              <div className="absolute -top-1 -right-1 bg-amber-400 p-1 rounded-full text-white shadow-lg">
+                                <Sparkles size={10} />
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-black text-slate-900 leading-tight">{student.displayName}</h3>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{student.branch || 'Innovator'}</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4 flex-1">
+                          <div className="flex items-center gap-2 text-slate-500 text-xs font-medium">
+                            <MapPin size={14} className="text-indigo-500" />
+                            {student.collegeName || 'Verified Campus'}
+                          </div>
+
+                          <p className="text-sm text-slate-500 leading-relaxed line-clamp-2 italic">
+                            "{student.bio || 'Passionate builder ready to collaborate on innovative projects.'}"
+                          </p>
+
+                          <div className="flex flex-wrap gap-2 pt-2">
+                            {student.studentSkills.slice(0, 4).map((skill, idx) => (
+                              <Badge key={idx} className="bg-slate-50 text-slate-600 border-none px-3 py-1 rounded-lg text-[10px] font-bold">
+                                {skill}
+                              </Badge>
+                            ))}
+                            {student.studentSkills.length > 4 && (
+                              <span className="text-[10px] font-black text-indigo-400 flex items-center">
+                                +{student.studentSkills.length - 4} MORE
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mt-8">
+                          <Button
+                            layout
+                            onClick={() => handleInvite(student)}
+                            disabled={isInvited}
+                            className={`w-full h-14 rounded-3xl font-black text-md shadow-xl transition-all duration-300 ${isInvited
+                              ? 'bg-emerald-50 text-emerald-600 shadow-emerald-100 pointer-events-none'
+                              : 'bg-slate-900 text-white shadow-slate-200 hover:bg-indigo-600 hover:shadow-indigo-100 active:scale-95'
+                              }`}
+                          >
+                            {isInvited ? (
+                              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-2">
+                                <Check className="h-5 w-5" /> Invitation Sent
+                              </motion.div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <UserPlus className="h-5 w-5" /> Send Invitation
+                              </div>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          ) : (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-40">
+              <div className="w-24 h-24 bg-slate-100 rounded-[40px] flex items-center justify-center mx-auto mb-6 text-slate-300">
+                <Users size={40} />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900">No new talent found</h3>
+              <p className="text-slate-500 max-w-xs mx-auto">Either everyone is already on your team, or it's time to broaden your search!</p>
+              <Button variant="link" onClick={() => setSearchTerm('')} className="mt-4 text-indigo-600 font-bold">Clear filters</Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
     </div>
   );
 }

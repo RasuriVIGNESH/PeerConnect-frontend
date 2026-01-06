@@ -1,345 +1,123 @@
-// src/components/project/StickyNotes.jsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, GripHorizontal, Plus, Palette, Pin, PinOff } from 'lucide-react';
 
-/**
- * Improved StickyNotes UI
- *
- * Props:
- * - notes: [{ id, x, y, w, h, text, color, pinned, minimized, title }]
- * - onChange(notes) - callback for parent to persist
- *
- * UX:
- * - Header with a small handle (drag anywhere) and title
- * - Pin (keeps on top), Minimize (collapse to small card)
- * - Resize by dragging bottom-right corner
- * - Bring to front when clicked
- * - Uses viewport (fixed) coordinates, rendered via portal so notes can move outside the editor
- */
-
-const DEFAULT_COLORS = ['#FFEB3B', '#FFCDD2', '#C8E6C9', '#BBDEFB', '#E1BEE7', '#FFE0B2'];
+const COLORS = [
+    { bg: '#FEF9C3', border: '#FDE047', text: '#854D0E' }, // Yellow
+    { bg: '#FFEDD5', border: '#FED7AA', text: '#9A3412' }, // Orange
+    { bg: '#F0FDF4', border: '#BBF7D0', text: '#166534' }, // Green
+    { bg: '#EFF6FF', border: '#DBEAFE', text: '#1E40AF' }, // Blue
+    { bg: '#FAF5FF', border: '#F3E8FF', text: '#6B21A8' }, // Purple
+];
 
 export default function StickyNotes({ notes = [], onChange }) {
-    const [localNotes, setLocalNotes] = useState(notes || []);
-    const draggingRef = useRef(null);
-    const resizingRef = useRef(null);
-    const offsetRef = useRef({ x: 0, y: 0 });
-    const zCounterRef = useRef(10000); // z-index counter to bring notes to front
-    const containerRef = useRef(null);
+    const [localNotes, setLocalNotes] = useState(notes);
+    const zIndexCounter = useRef(1000);
 
-    useEffect(() => setLocalNotes(notes || []), [notes]);
-
-    useEffect(() => {
-        // create container for portal once
-        if (!document.getElementById('sticky-portal-root')) {
-            const el = document.createElement('div');
-            el.id = 'sticky-portal-root';
-            document.body.appendChild(el);
-        }
-        containerRef.current = document.getElementById('sticky-portal-root');
-    }, []);
-
-    const pushChange = (newNotes) => {
-        setLocalNotes(newNotes);
-        if (onChange) onChange(newNotes);
-    };
-
-    const addSticky = () => {
-        const id = `sticky-${Date.now()}`;
-        const x = Math.max(20, window.innerWidth / 4);
-        const y = Math.max(20, window.innerHeight / 6);
+    const addNote = () => {
         const newNote = {
-            id,
-            x,
-            y,
-            w: 240,
-            h: 160,
-            text: 'New note…',
-            color: DEFAULT_COLORS[0],
+            id: Date.now(),
+            x: 100 + Math.random() * 100,
+            y: 100 + Math.random() * 100,
+            text: '',
+            color: COLORS[0],
             pinned: false,
-            minimized: false,
-            title: 'Quick note'
+            z: ++zIndexCounter.current
         };
-        pushChange([...(localNotes || []), { ...newNote, z: ++zCounterRef.current }]);
+        const updated = [...localNotes, newNote];
+        setLocalNotes(updated);
+        onChange?.(updated);
     };
 
-    const removeSticky = (id) => {
-        pushChange(localNotes.filter(n => n.id !== id));
+    const updateNote = (id, data) => {
+        const updated = localNotes.map(n => n.id === id ? { ...n, ...data } : n);
+        setLocalNotes(updated);
+        onChange?.(updated);
     };
 
-    const startDrag = (e, id) => {
-        e.stopPropagation();
-        draggingRef.current = id;
-        const el = e.currentTarget.closest('[data-sticky-id]');
-        const rect = el.getBoundingClientRect();
-        offsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-        // ensure top z
-        bringToFront(id);
-        document.addEventListener('mousemove', onDrag);
-        document.addEventListener('mouseup', stopDrag);
-    };
-
-    const onDrag = (e) => {
-        const id = draggingRef.current;
-        if (!id) return;
-        const note = localNotes.find(n => n.id === id);
-        if (!note) return;
-        const newX = e.clientX - offsetRef.current.x;
-        const newY = e.clientY - offsetRef.current.y;
-        setLocalNotes(prev => prev.map(n => n.id === id ? { ...n, x: newX, y: newY } : n));
-    };
-
-    const stopDrag = () => {
-        if (!draggingRef.current) return;
-        if (onChange) onChange(localNotes);
-        draggingRef.current = null;
-        document.removeEventListener('mousemove', onDrag);
-        document.removeEventListener('mouseup', stopDrag);
-    };
-
-    const startResize = (e, id) => {
-        e.stopPropagation();
-        resizingRef.current = id;
-        const el = e.currentTarget.closest('[data-sticky-id]');
-        const rect = el.getBoundingClientRect();
-        offsetRef.current = { startW: rect.width, startH: rect.height, startX: e.clientX, startY: e.clientY };
-        bringToFront(id);
-        document.addEventListener('mousemove', onResize);
-        document.addEventListener('mouseup', stopResize);
-    };
-
-    const onResize = (e) => {
-        const id = resizingRef.current;
-        if (!id) return;
-        const note = localNotes.find(n => n.id === id);
-        if (!note) return;
-        const dx = e.clientX - offsetRef.current.startX;
-        const dy = e.clientY - offsetRef.current.startY;
-        const newW = Math.max(120, offsetRef.current.startW + dx);
-        const newH = Math.max(80, offsetRef.current.startH + dy);
-        setLocalNotes(prev => prev.map(n => n.id === id ? { ...n, w: newW, h: newH } : n));
-    };
-
-    const stopResize = () => {
-        if (!resizingRef.current) return;
-        if (onChange) onChange(localNotes);
-        resizingRef.current = null;
-        document.removeEventListener('mousemove', onResize);
-        document.removeEventListener('mouseup', stopResize);
-    };
-
-    const updateText = (id, text) => {
-        const updated = localNotes.map(n => n.id === id ? { ...n, text } : n);
-        pushChange(updated);
-    };
-
-    const updateTitle = (id, title) => {
-        const updated = localNotes.map(n => n.id === id ? { ...n, title } : n);
-        pushChange(updated);
-    };
-
-    const changeColor = (id, color) => {
-        const updated = localNotes.map(n => n.id === id ? { ...n, color } : n);
-        pushChange(updated);
-    };
-
-    const toggleMinimize = (id) => {
-        const updated = localNotes.map(n => n.id === id ? { ...n, minimized: !n.minimized } : n);
-        pushChange(updated);
-    };
-
-    const togglePin = (id) => {
-        const updated = localNotes.map(n => n.id === id ? { ...n, pinned: !n.pinned } : n);
-        pushChange(updated);
+    const removeNote = (id) => {
+        const updated = localNotes.filter(n => n.id !== id);
+        setLocalNotes(updated);
+        onChange?.(updated);
     };
 
     const bringToFront = (id) => {
-        zCounterRef.current += 1;
-        const updated = localNotes.map(n => n.id === id ? { ...n, z: zCounterRef.current } : n);
-        setLocalNotes(updated);
-    };
-
-    // Small utility styles for nicer UI
-    const headerStyle = {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '8px 10px',
-        cursor: 'grab',
-        userSelect: 'none',
+        updateNote(id, { z: ++zIndexCounter.current });
     };
 
     const portalContent = (
-        <div style={{ position: 'fixed', left: 0, top: 0, right: 0, bottom: 0, pointerEvents: 'none', zIndex: 9999 }}>
-            {/* Add Sticky floating button */}
-            <div style={{ position: 'fixed', top: 14, right: 14, pointerEvents: 'auto', zIndex: 100000 }}>
-                <button
-                    onClick={addSticky}
-                    style={{
-                        padding: '10px 14px',
-                        background: 'linear-gradient(90deg,#6b46c1,#8b5cf6)',
-                        color: 'white',
-                        borderRadius: 12,
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontWeight: 600,
-                        boxShadow: '0 8px 28px rgba(99,102,241,0.18)'
-                    }}
-                    title="Add sticky"
-                >
-                    + Sticky
-                </button>
-            </div>
+        <div className="fixed inset-0 pointer-events-none z-[9999]">
+            {/* Floating Add Button */}
+            <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={addNote}
+                className="fixed bottom-8 right-8 w-14 h-14 bg-indigo-600 text-white rounded-2xl shadow-2xl shadow-indigo-200 flex items-center justify-center pointer-events-auto transition-colors hover:bg-indigo-700"
+            >
+                <Plus size={28} />
+            </motion.button>
 
-            {localNotes.map(note => {
-                const isMin = !!note.minimized;
-                const z = note.z || 10000;
-                return (
-                    <div
+            <AnimatePresence>
+                {localNotes.map((note) => (
+                    <motion.div
                         key={note.id}
-                        data-sticky-id={note.id}
-                        onMouseDown={() => bringToFront(note.id)}
-                        style={{
-                            position: 'fixed',
-                            left: note.x,
-                            top: note.y,
-                            width: note.w,
-                            height: isMin ? 48 : note.h,
-                            background: note.color || '#FFEB3B',
-                            zIndex: z,
-                            boxShadow: '0 12px 34px rgba(15,23,42,0.12)',
-                            borderRadius: 12,
-                            pointerEvents: 'auto',
-                            overflow: 'hidden',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            transition: 'box-shadow 150ms, transform 120ms',
-                            transformOrigin: 'center center'
-                        }}
+                        drag
+                        dragMomentum={false}
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1, zIndex: note.z }}
+                        exit={{ scale: 0.8, opacity: 0 }}
+                        onDragStart={() => bringToFront(note.id)}
+                        style={{ left: note.x, top: note.y, backgroundColor: note.color.bg }}
+                        className="absolute w-64 min-h-[180px] p-4 rounded-3xl shadow-2xl shadow-black/5 border-2 pointer-events-auto flex flex-col group"
                     >
-                        {/* Header (drag handle) */}
-                        <div
-                            style={{
-                                ...headerStyle,
-                                background: 'rgba(255,255,255,0.18)',
-                                backdropFilter: 'blur(6px)',
-                                justifyContent: 'space-between',
-                                borderBottom: isMin ? 'none' : '1px solid rgba(0,0,0,0.06)'
-                            }}
-                            onMouseDown={(e) => startDrag(e, note.id)}
-                        >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <div style={{
-                                    width: 10, height: 10, borderRadius: 3,
-                                    background: 'rgba(0,0,0,0.08)'
-                                }} title="drag handle" />
-                                <input
-                                    value={note.title || ''}
-                                    onChange={(e) => updateTitle(note.id, e.target.value)}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                    style={{
-                                        border: 'none',
-                                        background: 'transparent',
-                                        fontWeight: 700,
-                                        fontSize: 13,
-                                        outline: 'none',
-                                        width: 130,
-                                        color: 'rgba(0,0,0,0.8)'
-                                    }}
-                                />
+                        {/* Header / Drag Handle */}
+                        <div className="flex items-center justify-between mb-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex gap-1">
+                                {COLORS.map((c, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => updateNote(note.id, { color: c })}
+                                        className="w-3 h-3 rounded-full border border-black/5"
+                                        style={{ backgroundColor: c.bg }}
+                                    />
+                                ))}
                             </div>
-
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div className="flex items-center gap-2">
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); togglePin(note.id); }}
-                                    title={note.pinned ? 'Unpin' : 'Pin'}
-                                    style={{
-                                        border: 'none',
-                                        background: 'transparent',
-                                        cursor: 'pointer',
-                                        padding: 6,
-                                        borderRadius: 6
-                                    }}
+                                    onClick={() => updateNote(note.id, { pinned: !note.pinned })}
+                                    className="text-slate-400 hover:text-indigo-600 transition-colors"
                                 >
-                                    {note.pinned ? '📌' : '📍'}
+                                    {note.pinned ? <Pin size={14} className="fill-indigo-600 text-indigo-600" /> : <PinOff size={14} />}
                                 </button>
-
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); toggleMinimize(note.id); }}
-                                    title={isMin ? 'Expand' : 'Minimize'}
-                                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 6, borderRadius: 6 }}
+                                    onClick={() => removeNote(note.id)}
+                                    className="text-slate-400 hover:text-red-500 transition-colors"
                                 >
-                                    {isMin ? '▣' : '━'}
-                                </button>
-
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); removeSticky(note.id); }}
-                                    title="Delete"
-                                    style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: 6, borderRadius: 6 }}
-                                >
-                                    ✕
+                                    <X size={14} />
                                 </button>
                             </div>
                         </div>
 
-                        {/* Body */}
-                        {!isMin && (
-                            <div style={{ flex: 1, display: 'flex', padding: 10, gap: 8 }}>
-                                <textarea
-                                    value={note.text}
-                                    onChange={(e) => updateText(note.id, e.target.value)}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                    style={{
-                                        flex: 1,
-                                        border: 'none',
-                                        outline: 'none',
-                                        resize: 'none',
-                                        background: 'transparent',
-                                        fontSize: 13,
-                                        fontFamily: 'inherit',
-                                        color: 'rgba(0,0,0,0.85)'
-                                    }}
-                                />
+                        <textarea
+                            className="flex-1 bg-transparent border-none outline-none resize-none text-sm font-bold leading-relaxed placeholder:opacity-30"
+                            style={{ color: note.color.text }}
+                            placeholder="Write a thought..."
+                            value={note.text}
+                            onFocus={() => bringToFront(note.id)}
+                            onChange={(e) => updateNote(note.id, { text: e.target.value })}
+                        />
 
-                                {/* color palette */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                    {DEFAULT_COLORS.map(c => (
-                                        <button
-                                            key={c}
-                                            onClick={(e) => { e.stopPropagation(); changeColor(note.id, c); }}
-                                            style={{
-                                                width: 28, height: 22, borderRadius: 6, border: '1px solid rgba(0,0,0,0.06)',
-                                                background: c, cursor: 'pointer'
-                                            }}
-                                            title="Change color"
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Resize handle */}
-                        {!isMin && (
-                            <div
-                                onMouseDown={(e) => startResize(e, note.id)}
-                                style={{
-                                    width: 18,
-                                    height: 18,
-                                    position: 'absolute',
-                                    right: 8,
-                                    bottom: 8,
-                                    borderRadius: 4,
-                                    cursor: 'nwse-resize',
-                                    background: 'rgba(0,0,0,0.06)'
-                                }}
-                                title="Resize"
-                            />
-                        )}
-                    </div>
-                );
-            })}
+                        <div className="mt-2 flex justify-end">
+                            <GripHorizontal className="text-black/10 cursor-grab active:cursor-grabbing" size={20} />
+                        </div>
+                    </motion.div>
+                ))}
+            </AnimatePresence>
         </div>
     );
 
-    return containerRef.current ? createPortal(portalContent, containerRef.current) : null;
+    return typeof document !== 'undefined'
+        ? createPortal(portalContent, document.body)
+        : null;
 }

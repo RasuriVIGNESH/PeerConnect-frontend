@@ -1,0 +1,22 @@
+id,name,category,description,required_skills,difficulty,duration
+1,E-commerce Website,Academic,Build a full-stack e-commerce platform with payment integration,"React,Node.js,MongoDB,CSS",Intermediate,8-12 weeks
+2,Mobile Task Manager,Personal,Create a cross-platform mobile app for task management,"React Native,JavaScript,Firebase",Beginner,4-6 weeks
+3,Data Analytics Dashboard,Academic,Develop a dashboard for visualizing business data,"Python,Data Analysis,Tableau,SQL",Intermediate,6-8 weeks
+4,Social Media Platform,Startup,Build a social networking platform with real-time features,"React,Node.js,Socket.io,PostgreSQL",Advanced,12-16 weeks
+5,Machine Learning Classifier,Research,Create an ML model for image or text classification,"Python,Machine Learning,TensorFlow,Data Analysis",Advanced,8-10 weeks
+6,Portfolio Website,Personal,Design and develop a personal portfolio website,"HTML,CSS,JavaScript,Web Design",Beginner,2-4 weeks
+7,Inventory Management System,Academic,Build a system for tracking and managing inventory,"Java,SQL,Spring Boot,UI/UX Design",Intermediate,6-8 weeks
+8,Game Development Project,Personal,Create a 2D or 3D game using modern game engines,"C#,Unity,Game Design,3D Modeling",Intermediate,10-12 weeks
+9,Blockchain Application,Research,Develop a decentralized application using blockchain,"Solidity,Web3,JavaScript,Cryptography",Advanced,12-14 weeks
+10,IoT Smart Home System,Academic,Build an IoT system for home automation,"Arduino,Python,Raspberry Pi,Mobile Development",Intermediate,8-10 weeks
+11,AI Chatbot,Hackathon,Create an intelligent chatbot using NLP,"Python,Machine Learning,Natural Language Processing,API Development",Intermediate,3-5 weeks
+12,Fitness Tracking App,Personal,Develop a mobile app for fitness and health tracking,"Flutter,Dart,Firebase,UI/UX Design",Beginner,6-8 weeks
+13,Online Learning Platform,Startup,Build a comprehensive e-learning platform,"React,Node.js,Video Streaming,Payment Integration",Advanced,14-16 weeks
+14,Weather Prediction Model,Research,Create a machine learning model for weather forecasting,"Python,Data Science,Machine Learning,Statistics",Advanced,10-12 weeks
+15,Restaurant Management System,Academic,Develop a complete restaurant management solution,"PHP,MySQL,Web Design,Point of Sale",Intermediate,8-10 weeks
+16,Cryptocurrency Tracker,Personal,Build an app to track cryptocurrency prices and trends,"React,API Integration,Data Visualization,Real-time Updates",Beginner,4-6 weeks
+17,Virtual Reality Experience,Research,Create an immersive VR application or game,"Unity,C#,VR Development,3D Design",Advanced,12-14 weeks
+18,Supply Chain Tracker,Academic,Develop a system for tracking products through supply chain,"Blockchain,Web Development,Database Design,Logistics",Intermediate,10-12 weeks
+19,Music Streaming App,Personal,Build a music streaming platform with playlists,"React Native,Audio Processing,Cloud Storage,UI/UX Design",Intermediate,8-10 weeks
+20,Automated Testing Framework,Academic,Create a framework for automated software testing,"Python,Test Automation,CI/CD,Quality Assurance",Intermediate,6-8 weeks
+

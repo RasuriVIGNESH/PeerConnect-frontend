@@ -1,456 +1,293 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { userService } from '../../services';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'; // Assuming Tabs component from UI library
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-    User, Mail, GraduationCap, BookOpen, Github, Linkedin, Globe, Camera, Plus, X, Save, Edit3, FolderOpen,
-    CheckCircle, AlertTriangle, Loader2
+    User, Mail, GraduationCap, BookOpen, Github, Linkedin, Globe, Camera,
+    X, Save, Edit3, CheckCircle, AlertTriangle, Loader2, Sparkles, MapPin,
+    Briefcase, Link as LinkIcon, Trash2
 } from 'lucide-react';
 
-// --- CONSTANTS ---
+// --- Constants ---
 const currentYear = new Date().getFullYear();
 const graduationYears = Array.from({ length: 8 }, (_, i) => currentYear + i);
-
-const branches = [
-    'Computer Science', 'Information Technology', 'Electronics and Communication',
-    'Electrical Engineering', 'Mechanical Engineering', 'Civil Engineering',
-    'Chemical Engineering', 'Biotechnology', 'Business Administration',
-    'Economics', 'Mathematics', 'Physics', 'Chemistry', 'Other'
-];
-
+const branches = ['Computer Science', 'Information Technology', 'Electronics', 'Mechanical', 'Civil', 'Business', 'Other'];
 const availabilityOptions = [
-    { value: 'AVAILABLE', label: 'Available', color: 'bg-green-600' },
-    { value: 'BUSY', label: 'Busy', color: 'bg-yellow-600' },
-    { value: 'OFFLINE', label: 'Offline', color: 'bg-gray-500' }
+    { value: 'AVAILABLE', label: 'Active Now', color: 'bg-emerald-500', shadow: 'shadow-emerald-200' },
+    { value: 'BUSY', label: 'Busy', color: 'bg-amber-500', shadow: 'shadow-amber-200' },
+    { value: 'OFFLINE', label: 'Offline', color: 'bg-slate-400', shadow: 'shadow-slate-200' }
 ];
 
-// --- UTILITY FUNCTIONS ---
-const getInitials = (userProfile, formData) => {
-    const first = formData.firstName || userProfile?.firstName || '';
-    const last = formData.lastName || userProfile?.lastName || '';
-    return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
-};
-
-const getAvailability = (userProfile) => {
-    return availabilityOptions.find(
-        option => option.value === (userProfile?.availabilityStatus || 'AVAILABLE')
-    );
-};
-
-// --- MAIN COMPONENT ---
 export default function ProfilePage() {
     const { currentUser, userProfile, updateUserProfile, fetchUserProfile } = useAuth();
     const [isEditing, setIsEditing] = useState(false);
-    const [showPictureInput, setShowPictureInput] = useState(false);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
     const [photoFile, setPhotoFile] = useState(null);
     const [photoLoading, setPhotoLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState('details'); // State for active tab
+    const [activeTab, setActiveTab] = useState('details');
     const fileInputRef = useRef(null);
 
     const [formData, setFormData] = useState({
-        firstName: '', lastName: '', bio: '', profilePictureUrl: '',
-        graduationYear: '', branch: '', githubUrl: '', linkedinUrl: '',
-        portfolioUrl: '', availabilityStatus: 'AVAILABLE', collegeName: ''
+        firstName: '', lastName: '', bio: '', graduationYear: '',
+        branch: '', githubUrl: '', linkedinUrl: '', portfolioUrl: '',
+        availabilityStatus: 'AVAILABLE'
     });
 
-    // Initialize form data when user profile loads
     useEffect(() => {
         if (userProfile) {
             setFormData({
                 firstName: userProfile.firstName || '',
                 lastName: userProfile.lastName || '',
                 bio: userProfile.bio || '',
-                profilePictureUrl: userProfile.profilePictureUrl || '',
                 graduationYear: userProfile.graduationYear?.toString() || '',
                 branch: userProfile.branch || '',
                 githubUrl: userProfile.githubUrl || '',
                 linkedinUrl: userProfile.linkedinUrl || '',
                 portfolioUrl: userProfile.portfolioUrl || '',
                 availabilityStatus: userProfile.availabilityStatus || 'AVAILABLE',
-                collegeName: userProfile.college?.name || ''
             });
         }
     }, [userProfile]);
 
-    function handleInputChange(e) {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    }
+    const handleInputChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const handleSelectChange = (name, value) => setFormData(prev => ({ ...prev, [name]: value }));
 
-    function handleSelectChange(name, value) {
-        setFormData(prev => ({ ...prev, [name]: value }));
-    }
-
-    // --- Photo Handlers (Simplified for brevity, functionality preserved) ---
-    async function handleUploadPhoto() {
-        if (!photoFile) return;
-
+    const handleSave = async () => {
         try {
-            setPhotoLoading(true);
-            setError('');
-            setMessage('');
-
-            await userService.uploadProfilePicture(photoFile);
-
-            // Refresh profile to get the new photo
-            await fetchUserProfile(currentUser.id);
-
-            setMessage('Profile photo uploaded successfully!');
-            setPhotoFile(null);
-            // Reset file input
-            if (fileInputRef.current) {
-                fileInputRef.current.value = '';
-            }
-
-        } catch (error) {
-            console.error('Photo upload error:', error);
-            setError(error.message || 'Failed to upload photo');
-        } finally {
-            setPhotoLoading(false);
-        }
-    }
-
-    async function handleDeletePhoto() {
-        try {
-            setPhotoLoading(true);
-            setError('');
-            setMessage('');
-
-            await userService.deleteProfilePhoto();
-
-            // Refresh profile
-            await fetchUserProfile(currentUser.id);
-
-            setMessage('Profile photo removed successfully!');
-
-        } catch (error) {
-            console.error('Photo delete error:', error);
-            setError(error.message || 'Failed to delete photo');
-        } finally {
-            setPhotoLoading(false);
-        }
-    }
-
-    // --- Save/Cancel Handlers (Functionality preserved) ---
-    async function handleSave() {
-        try {
-            setError('');
-            setMessage('');
-            setLoading(true);
-
-            if (!currentUser) {
-                throw new Error('User not authenticated. Please log in again.');
-            }
-            if (!formData.firstName?.trim() || !formData.lastName?.trim()) {
-                throw new Error('First name and last name are required');
-            }
-
-            const updates = {
-                firstName: formData.firstName.trim(),
-                lastName: formData.lastName.trim(),
-                bio: formData.bio?.trim() || '',
-                branch: formData.branch?.trim() || '',
-                githubUrl: formData.githubUrl?.trim() || '',
-                linkedinUrl: formData.linkedinUrl?.trim() || '',
-                portfolioUrl: formData.portfolioUrl?.trim() || '',
-                availabilityStatus: formData.availabilityStatus || 'AVAILABLE'
-            };
-
-            if (formData.graduationYear && !isNaN(parseInt(formData.graduationYear))) {
-                updates.graduationYear = parseInt(formData.graduationYear);
-            }
-
+            setLoading(true); setError(''); setMessage('');
+            const updates = { ...formData, graduationYear: parseInt(formData.graduationYear) };
             await updateUserProfile(updates);
-            setMessage('Profile updated successfully!');
+            setMessage('Profile optimized successfully!');
             setIsEditing(false);
+        } catch (err) { setError(err.message || 'Update failed'); }
+        finally { setLoading(false); }
+    };
 
-        } catch (error) {
-            console.error('Profile update error:', error);
-            setError(error.message || 'Failed to update profile. Please try again.');
-        } finally {
-            setLoading(false);
-        }
-    }
+    const handlePhotoUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        try {
+            setPhotoLoading(true);
+            await userService.uploadProfilePicture(file);
+            await fetchUserProfile(currentUser.id);
+            setMessage('Identity photo updated!');
+        } catch (err) { setError('Photo upload failed'); }
+        finally { setPhotoLoading(false); }
+    };
 
-    function handleCancel() {
-        // Reset form data to original values
-        if (userProfile) {
-            setFormData({
-                firstName: userProfile.firstName || '',
-                lastName: userProfile.lastName || '',
-                bio: userProfile.bio || '',
-                profilePictureUrl: userProfile.profilePictureUrl || '',
-                graduationYear: userProfile.graduationYear?.toString() || '',
-                branch: userProfile.branch || '',
-                githubUrl: userProfile.githubUrl || '',
-                linkedinUrl: userProfile.linkedinUrl || '',
-                portfolioUrl: userProfile.portfolioUrl || '',
-                availabilityStatus: userProfile.availabilityStatus || 'AVAILABLE',
-                collegeName: userProfile.college?.name || ''
-            });
-        }
-        setIsEditing(false);
-        setError('');
-        setMessage('');
-    }
+    const currentAvail = availabilityOptions.find(o => o.value === formData.availabilityStatus);
 
-    const currentAvailability = getAvailability(userProfile);
-
-    if (!currentUser) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-50">
-                <Card className="w-full max-w-md shadow-lg">
-                    <CardContent className="pt-6">
-                        <p className="text-center text-gray-500">
-                            Please log in to access your profile.
-                        </p>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
-
-    // --- RENDER ---
     return (
-        // Full screen container with fixed height to prevent scrolling
-        <div className="h-screen w-full bg-gray-50 flex items-center justify-center p-8">
-            <Card className="w-full max-w-6xl h-full shadow-2xl flex flex-col md:flex-row-reverse overflow-hidden">
-                {/* Left Column: Details/Edit Form (70% width) */}
-                <div className="flex-1 p-6 overflow-y-auto border-r border-blue-700/10">
-                    <div className="flex justify-between items-center mb-4 border-b pb-4">
-                        <h2 className="text-2xl font-bold text-gray-800">
-                            {isEditing ? 'Edit Profile' : 'Profile Details'}
+        <div className="min-h-screen bg-[#F8FAFC] flex flex-col md:flex-row overflow-hidden font-sans">
+
+            {/* --- LEFT SIDE: IDENTITY SIDEBAR --- */}
+            <aside className="w-full md:w-[380px] bg-slate-900 flex flex-col items-center justify-center p-10 text-center relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+                    <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-indigo-500 rounded-full blur-3xl" />
+                </div>
+
+                <div className="relative z-10 space-y-6 w-full">
+                    {/* Avatar with Status Pulse */}
+                    <div className="relative mx-auto w-40 h-40">
+                        <div className={`absolute inset-0 rounded-full border-4 ${currentAvail?.color} opacity-20 animate-ping`} />
+                        <Avatar className="h-40 w-40 ring-4 ring-white/10 shadow-2xl relative">
+                            <AvatarImage src={userProfile?.profilePictureUrl} className="object-cover" />
+                            <AvatarFallback className="bg-indigo-600 text-white text-4xl font-black">
+                                {formData.firstName?.[0]}{formData.lastName?.[0]}
+                            </AvatarFallback>
+                        </Avatar>
+
+                        <label className="absolute bottom-1 right-1 h-10 w-10 bg-indigo-600 rounded-full flex items-center justify-center text-white cursor-pointer hover:scale-110 transition-transform shadow-lg">
+                            <Camera size={18} />
+                            <input type="file" hidden onChange={handlePhotoUpload} accept="image/*" />
+                        </label>
+                    </div>
+
+                    <div className="space-y-2">
+                        <h2 className="text-3xl font-black text-white tracking-tight">
+                            {userProfile?.firstName} {userProfile?.lastName}
                         </h2>
+                        <Badge className={`${currentAvail?.color} text-white border-none px-4 py-1 rounded-full font-bold uppercase text-[10px] tracking-widest`}>
+                            {currentAvail?.label}
+                        </Badge>
+                    </div>
+
+                    <div className="pt-6 space-y-4 text-slate-400 text-sm font-medium">
+                        <div className="flex items-center justify-center gap-3">
+                            <Mail size={16} className="text-indigo-400" /> {userProfile?.email}
+                        </div>
+                        <div className="flex items-center justify-center gap-3">
+                            <GraduationCap size={16} className="text-indigo-400" /> {userProfile?.collegeName || 'Verified Student'}
+                        </div>
+                    </div>
+
+                    <div className="flex justify-center gap-4 pt-8">
+                        {userProfile?.githubUrl && <a href={userProfile.githubUrl} target="_blank" className="p-3 bg-white/5 rounded-2xl text-white hover:bg-indigo-600 transition-colors"><Github size={20} /></a>}
+                        {userProfile?.linkedinUrl && <a href={userProfile.linkedinUrl} target="_blank" className="p-3 bg-white/5 rounded-2xl text-white hover:bg-indigo-600 transition-colors"><Linkedin size={20} /></a>}
+                        {userProfile?.portfolioUrl && <a href={userProfile.portfolioUrl} target="_blank" className="p-3 bg-white/5 rounded-2xl text-white hover:bg-indigo-600 transition-colors"><Globe size={20} /></a>}
+                    </div>
+                </div>
+            </aside>
+
+            {/* --- RIGHT SIDE: CONTENT FEED --- */}
+            <main className="flex-1 overflow-y-auto bg-[#F8FAFC] p-8 lg:p-16">
+                <div className="max-w-4xl mx-auto">
+
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-12">
+                        <div>
+                            <h1 className="text-4xl font-black text-slate-900 tracking-tight">Digital Profile</h1>
+                            <p className="text-slate-500 font-medium">Manage your professional presence across PeerConnect.</p>
+                        </div>
                         <Button
-                            variant={isEditing ? "outline" : "default"}
-                            onClick={() => {
-                                if (isEditing) handleCancel();
-                                setIsEditing(!isEditing);
-                            }}
-                            className="gap-2 transition-all duration-300"
+                            onClick={() => { if (isEditing) handleSave(); else setIsEditing(true); }}
+                            className={`${isEditing ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700'} rounded-2xl h-12 px-8 font-bold shadow-xl shadow-indigo-200 transition-all`}
                         >
-                            <Edit3 className="h-4 w-4" />
-                            {isEditing ? 'Cancel' : 'Edit Profile'}
+                            {loading ? <Loader2 className="animate-spin" /> : isEditing ? <Save className="mr-2 h-4 w-4" /> : <Edit3 className="mr-2 h-4 w-4" />}
+                            {isEditing ? 'Save Identity' : 'Customize Profile'}
                         </Button>
                     </div>
 
-                    {/* Alerts */}
-                    {error && (
-                        <Alert variant="destructive" className="mb-4 bg-red-50 border-red-200 text-red-700">
-                            <AlertTriangle className="h-4 w-4" />
-                            <AlertDescription>{error}</AlertDescription>
-                        </Alert>
-                    )}
-                    {message && (
-                        <Alert className="mb-4 bg-green-50 border-green-200 text-green-700">
-                            <CheckCircle className="h-4 w-4" />
-                            <AlertDescription>{message}</AlertDescription>
-                        </Alert>
-                    )}
-
-                    {isEditing ? (
-                        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                            <TabsList className="grid w-full grid-cols-3 h-10">
-                                <TabsTrigger value="details">Personal Info</TabsTrigger>
-                                <TabsTrigger value="social">Social Links</TabsTrigger>
-                                <TabsTrigger value="photo">Photo Management</TabsTrigger>
-                            </TabsList>
-
-                            {/* Tab 1: Personal Info */}
-                            <TabsContent value="details" className="mt-4 space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="firstName">First Name *</Label>
-                                        <Input id="firstName" name="firstName" value={formData.firstName} onChange={handleInputChange} placeholder="First Name" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="lastName">Last Name *</Label>
-                                        <Input id="lastName" name="lastName" value={formData.lastName} onChange={handleInputChange} placeholder="Last Name" />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="bio">Bio</Label>
-                                    <Textarea id="bio" name="bio" value={formData.bio} onChange={handleInputChange} placeholder="Tell us about yourself..." rows={3} />
-                                </div>
-
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="branch">Branch</Label>
-                                        <Select value={formData.branch} onValueChange={(value) => handleSelectChange('branch', value)}>
-                                            <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
-                                            <SelectContent>
-                                                {branches.map((branch) => (<SelectItem key={branch} value={branch}>{branch}</SelectItem>))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="graduationYear">Graduation Year</Label>
-                                        <Select value={formData.graduationYear} onValueChange={(value) => handleSelectChange('graduationYear', value)}>
-                                            <SelectTrigger><SelectValue placeholder="Select year" /></SelectTrigger>
-                                            <SelectContent>
-                                                {graduationYears.map((year) => (<SelectItem key={year} value={year.toString()}>{year}</SelectItem>))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="availabilityStatus">Availability</Label>
-                                        <Select value={formData.availabilityStatus} onValueChange={(value) => handleSelectChange('availabilityStatus', value)}>
-                                            <SelectTrigger><SelectValue placeholder="Select availability" /></SelectTrigger>
-                                            <SelectContent>
-                                                {availabilityOptions.map((option) => (
-                                                    <SelectItem key={option.value} value={option.value}>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className={`w-2 h-2 rounded-full ${option.color}`}></div>
-                                                            {option.label}
-                                                        </div>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                            </TabsContent>
-
-                            {/* Tab 2: Social Links */}
-                            <TabsContent value="social" className="mt-4 space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="githubUrl" className="flex items-center gap-2"><Github className="h-4 w-4 text-gray-500" /> GitHub URL</Label>
-                                    <Input id="githubUrl" name="githubUrl" value={formData.githubUrl} onChange={handleInputChange} placeholder="https://github.com/yourusername" type="url" />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="linkedinUrl" className="flex items-center gap-2"><Linkedin className="h-4 w-4 text-gray-500" /> LinkedIn URL</Label>
-                                    <Input id="linkedinUrl" name="linkedinUrl" value={formData.linkedinUrl} onChange={handleInputChange} placeholder="https://linkedin.com/in/yourusername" type="url" />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="portfolioUrl" className="flex items-center gap-2"><Globe className="h-4 w-4 text-gray-500" /> Portfolio URL</Label>
-                                    <Input id="portfolioUrl" name="portfolioUrl" value={formData.portfolioUrl} onChange={handleInputChange} placeholder="https://yourportfolio.com" type="url" />
-                                </div>
-                            </TabsContent>
-
-                            {/* Tab 3: Photo Management */}
-                            <TabsContent value="photo" className="mt-4 space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="profilePhoto">Upload New Profile Photo</Label>
-                                    <Input
-                                        ref={fileInputRef}
-                                        id="profilePhoto"
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
-                                    />
-                                    <div className="flex gap-2 pt-2">
-                                        <Button size="sm" onClick={handleUploadPhoto} disabled={photoLoading || !photoFile} className="bg-blue-700 hover:bg-blue-800 transition-colors duration-300">
-                                            {photoLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Camera className="h-4 w-4 mr-2" />}
-                                            {photoLoading ? 'Uploading...' : 'Upload Photo'}
-                                        </Button>
-                                        <Button size="sm" variant="destructive" onClick={handleDeletePhoto} disabled={photoLoading || !userProfile?.profilePictureUrl} className="transition-colors duration-300">
-                                            <X className="h-4 w-4 mr-2" />
-                                            Delete Current Photo
-                                        </Button>
-                                    </div>
-                                </div>
-                            </TabsContent>
-
-                            {/* Save Button for Edit Mode */}
-                            <div className="flex justify-end gap-2 pt-6 border-t mt-6">
-                                <Button
-                                    onClick={handleSave}
-                                    disabled={loading}
-                                    className="gap-2 bg-blue-700 hover:bg-blue-800 transition-colors duration-300"
-                                >
-                                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                                    {loading ? 'Saving...' : 'Save Changes'}
-                                </Button>
-                            </div>
-                        </Tabs>
-                    ) : (
-                        // View Mode - Simplified and condensed display
-                        <div className="space-y-6">
-                            <Card className="shadow-none border-l-4 border-blue-700">
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-lg font-semibold text-gray-700">About Me</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-gray-600 italic">{userProfile?.bio || "No bio provided."}</p>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="shadow-none border-l-4 border-green-600">
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-lg font-semibold text-gray-700">Academic Details</CardTitle>
-                                </CardHeader>
-                                <CardContent className="grid grid-cols-2 gap-4 text-sm text-gray-600">
-                                    <div className="flex items-center gap-2"><BookOpen className="h-4 w-4 text-gray-500" /> <span>Branch: {userProfile?.branch || "N/A"}</span></div>
-                                    <div className="flex items-center gap-2"><GraduationCap className="h-4 w-4 text-gray-500" /> <span>Graduation: {userProfile?.graduationYear || "N/A"}</span></div>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="shadow-none border-l-4 border-indigo-600">
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-lg font-semibold text-gray-700">Social Presence</CardTitle>
-                                </CardHeader>
-                                <CardContent className="grid grid-cols-3 gap-4 text-sm text-blue-700">
-                                    {userProfile?.githubUrl && <a href={userProfile.githubUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:underline"><Github className="h-4 w-4" /> GitHub</a>}
-                                    {userProfile?.linkedinUrl && <a href={userProfile.linkedinUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:underline"><Linkedin className="h-4 w-4" /> LinkedIn</a>}
-                                    {userProfile?.portfolioUrl && <a href={userProfile.portfolioUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:underline"><Globe className="h-4 w-4" /> Portfolio</a>}
-                                    {(!userProfile?.githubUrl && !userProfile?.linkedinUrl && !userProfile?.portfolioUrl) && <p className="text-gray-500 italic col-span-3">No social links provided.</p>}
-                                </CardContent>
-                            </Card>
-                        </div>
-                    )}
-                </div>
-
-                {/* Right Column: Profile Summary (30% width) - Always Visible */}
-                <div className="w-full md:w-80 bg-blue-700/5 p-6 flex flex-col items-center justify-center">
-                    <div className="text-center">
-                        <Avatar className="h-32 w-32 mx-auto mb-4 ring-4 ring-blue-700/20 hover:ring-blue-700/50 transition-all duration-500">
-                            <AvatarImage src={userProfile?.profilePictureUrl} />
-                            <AvatarFallback className="text-3xl bg-blue-700 text-white">{getInitials(userProfile, formData)}</AvatarFallback>
-                        </Avatar>
-
-                        <h3 className="text-2xl font-bold text-gray-900 mb-1">
-                            {userProfile?.firstName} {userProfile?.lastName}
-                        </h3>
-
-                        <Badge
-                            className={`text-white text-sm font-medium mb-4 ${currentAvailability?.color} transition-colors duration-300`}
-                        >
-                            {currentAvailability?.label}
-                        </Badge>
-
-                        <p className="text-sm text-gray-600 flex items-center justify-center gap-2 mb-2">
-                            <Mail className="h-4 w-4 text-gray-500" />
-                            {userProfile?.email}
-                        </p>
-
-                        {userProfile?.collegeName && (
-                            <p className="text-sm text-gray-600 flex items-center justify-center gap-2 mb-2">
-                                <GraduationCap className="h-4 w-4 text-gray-500" />
-                                {userProfile.collegeName}
-                            </p>
+                    {/* Feedback Alerts */}
+                    <AnimatePresence>
+                        {message && (
+                            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                                <Alert className="mb-6 bg-emerald-50 border-emerald-100 text-emerald-700 rounded-2xl"><CheckCircle className="h-4 w-4" /> <AlertDescription>{message}</AlertDescription></Alert>
+                            </motion.div>
                         )}
+                        {error && (
+                            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                                <Alert variant="destructive" className="mb-6 rounded-2xl"><AlertTriangle className="h-4 w-4" /> <AlertDescription>{error}</AlertDescription></Alert>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
-                        <div className="mt-6 pt-4 border-t border-blue-700/10">
-                            <p className="text-xs text-gray-500 italic">
-                                Last updated: {new Date().toLocaleDateString()}
-                            </p>
-                        </div>
-                    </div>
+                    {/* CONTENT BENTO GRID */}
+                    <AnimatePresence mode="wait">
+                        {!isEditing ? (
+                            <motion.div
+                                key="view"
+                                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                                className="grid grid-cols-1 md:grid-cols-2 gap-8"
+                            >
+                                <Card className="md:col-span-2 border-none shadow-sm rounded-[32px] p-10 bg-white">
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Bio & Introduction</h4>
+                                    <p className="text-xl text-slate-700 font-medium leading-relaxed italic">
+                                        "{userProfile?.bio || "No professional summary provided yet."}"
+                                    </p>
+                                </Card>
+
+                                <Card className="border-none shadow-sm rounded-[32px] p-8 bg-white flex flex-col justify-between">
+                                    <div>
+                                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Education</h4>
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-4">
+                                                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl"><BookOpen size={20} /></div>
+                                                <div><p className="text-xs text-slate-400 font-bold">Branch</p><p className="font-bold text-slate-800">{userProfile?.branch || 'N/A'}</p></div>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl"><GraduationCap size={20} /></div>
+                                                <div><p className="text-xs text-slate-400 font-bold">Graduation Year</p><p className="font-bold text-slate-800">{userProfile?.graduationYear || 'N/A'}</p></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Card>
+
+                                <Card className="border-none shadow-sm rounded-[32px] p-8 bg-white overflow-hidden relative group">
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Network Health</h4>
+                                    <div className="text-center py-4">
+                                        <div className="text-5xl font-black text-indigo-600 mb-2">{userProfile?.connectionCount || 0}</div>
+                                        <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Global Connections</p>
+                                    </div>
+                                    <Sparkles className="absolute -bottom-4 -right-4 w-24 h-24 text-slate-50 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                                </Card>
+                            </motion.div>
+                        ) : (
+                            <motion.div key="edit" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
+                                <Tabs defaultValue="details" className="w-full">
+                                    <TabsList className="bg-slate-100 p-2 rounded-2xl mb-8">
+                                        <TabsTrigger value="details" className="rounded-xl px-8 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Personal</TabsTrigger>
+                                        <TabsTrigger value="social" className="rounded-xl px-8 font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm">Socials</TabsTrigger>
+                                    </TabsList>
+
+                                    <TabsContent value="details" className="space-y-6">
+                                        <div className="grid grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <Label className="font-bold text-slate-700 ml-1">First Name</Label>
+                                                <Input name="firstName" value={formData.firstName} onChange={handleInputChange} className="h-14 rounded-2xl bg-white border-slate-200" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="font-bold text-slate-700 ml-1">Last Name</Label>
+                                                <Input name="lastName" value={formData.lastName} onChange={handleInputChange} className="h-14 rounded-2xl bg-white border-slate-200" />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="font-bold text-slate-700 ml-1">Bio</Label>
+                                            <Textarea name="bio" value={formData.bio} onChange={handleInputChange} className="rounded-2xl bg-white border-slate-200 min-h-[120px]" />
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-6">
+                                            <div className="space-y-2">
+                                                <Label className="font-bold text-slate-700 ml-1">Availability</Label>
+                                                <Select value={formData.availabilityStatus} onValueChange={(v) => handleSelectChange('availabilityStatus', v)}>
+                                                    <SelectTrigger className="h-14 rounded-2xl bg-white"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {availabilityOptions.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="font-bold text-slate-700 ml-1">Graduation</Label>
+                                                <Select value={formData.graduationYear} onValueChange={(v) => handleSelectChange('graduationYear', v)}>
+                                                    <SelectTrigger className="h-14 rounded-2xl bg-white"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {graduationYears.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="font-bold text-slate-700 ml-1">Branch</Label>
+                                                <Select value={formData.branch} onValueChange={(v) => handleSelectChange('branch', v)}>
+                                                    <SelectTrigger className="h-14 rounded-2xl bg-white"><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        {branches.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    </TabsContent>
+
+                                    <TabsContent value="social" className="space-y-6">
+                                        <div className="space-y-4">
+                                            <Label className="font-bold text-slate-700 ml-1">GitHub Portfolio</Label>
+                                            <Input name="githubUrl" value={formData.githubUrl} onChange={handleInputChange} placeholder="https://github.com/..." className="h-14 rounded-2xl bg-white border-slate-200" />
+                                        </div>
+                                        <div className="space-y-4">
+                                            <Label className="font-bold text-slate-700 ml-1">LinkedIn Profile</Label>
+                                            <Input name="linkedinUrl" value={formData.linkedinUrl} onChange={handleInputChange} placeholder="https://linkedin.com/in/..." className="h-14 rounded-2xl bg-white border-slate-200" />
+                                        </div>
+                                        <div className="space-y-4">
+                                            <Label className="font-bold text-slate-700 ml-1">Personal Website</Label>
+                                            <Input name="portfolioUrl" value={formData.portfolioUrl} onChange={handleInputChange} placeholder="https://..." className="h-14 rounded-2xl bg-white border-slate-200" />
+                                        </div>
+                                    </TabsContent>
+                                </Tabs>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
-            </Card>
+            </main>
         </div>
     );
 }
