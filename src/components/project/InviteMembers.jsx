@@ -49,13 +49,22 @@ export default function InviteMembers() {
         ]);
 
         const allStudents = usersRes?.data?.content || usersRes?.data || [];
+
+        // Normalize students to ensure they have an id or fallbacks
+        const allStudentsNormalized = allStudents.map(s => ({
+          ...s,
+          id: s.id || s.userId || s._id,
+          // Use email as a fallback unique key for React rendering if ID is missing
+          uniqueKey: s.id || s.userId || s._id || s.email
+        }));
+
         const currentMembers = membersRes?.data || [];
         const memberIds = new Set(currentMembers.map(m => m.user.id));
 
         const leadId = projectRes?.lead?.id || projectRes?.Lead?.id;
         if (leadId) memberIds.add(leadId);
 
-        const available = allStudents.filter(s => !memberIds.has(s.id));
+        const available = allStudentsNormalized.filter(s => !memberIds.has(s.id));
         const processed = available.map(s => ({
           ...s,
           displayName: s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim(),
@@ -165,9 +174,9 @@ export default function InviteMembers() {
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
             >
               {filteredStudents.map(student => {
-                const isInvited = invitedUserIds.includes(student.id);
+                const isInvited = student.id && invitedUserIds.includes(student.id);
                 return (
-                  <motion.div key={student.id} variants={itemVar}>
+                  <motion.div key={student.uniqueKey} variants={itemVar}>
                     <Card className="group border-none shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 rounded-[40px] overflow-hidden bg-white p-8 flex flex-col h-full relative">
 
                       {/* Decorative Element */}
@@ -222,18 +231,23 @@ export default function InviteMembers() {
 
                         <div className="mt-8">
                           <Button
-                            layout
                             onClick={() => handleInvite(student)}
-                            disabled={isInvited}
+                            disabled={isInvited || !student.id}
                             className={`w-full h-14 rounded-3xl font-black text-md shadow-xl transition-all duration-300 ${isInvited
                               ? 'bg-emerald-50 text-emerald-600 shadow-emerald-100 pointer-events-none'
-                              : 'bg-slate-900 text-white shadow-slate-200 hover:bg-indigo-600 hover:shadow-indigo-100 active:scale-95'
+                              : !student.id
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                : 'bg-slate-900 text-white shadow-slate-200 hover:bg-indigo-600 hover:shadow-indigo-100 active:scale-95'
                               }`}
                           >
                             {isInvited ? (
                               <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-2">
                                 <Check className="h-5 w-5" /> Invitation Sent
                               </motion.div>
+                            ) : !student.id ? (
+                              <div className="flex items-center gap-2">
+                                <UserPlus className="h-5 w-5" /> Unavailable (No ID)
+                              </div>
                             ) : (
                               <div className="flex items-center gap-2">
                                 <UserPlus className="h-5 w-5" /> Send Invitation

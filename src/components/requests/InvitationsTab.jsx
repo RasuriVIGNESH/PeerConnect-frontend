@@ -57,11 +57,11 @@ export default function InvitationsTab() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {pendingInvitations.map(inv => (
               <RequestCard
-                key={inv.id}
+                key={inv.invitationId}
                 item={inv}
                 type="invitation"
-                onAccept={(id) => handleInvitationResponse(id, 'ACCEPTED')}
-                onReject={(id) => handleInvitationResponse(id, 'REJECTED')}
+                onAccept={() => handleInvitationResponse(inv.invitationId, 'ACCEPTED')}
+                onReject={() => handleInvitationResponse(inv.invitationId, 'DECLINED')}
               />
             ))}
           </div>
@@ -84,7 +84,7 @@ export default function InvitationsTab() {
           </h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 opacity-70">
             {respondedInvitations.map(inv => (
-              <RequestCard key={inv.id} item={inv} type="invitation" />
+              <RequestCard key={inv.invitationId} item={inv} type="invitation" />
             ))}
           </div>
         </div>
